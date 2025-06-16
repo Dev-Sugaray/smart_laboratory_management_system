@@ -19,7 +19,6 @@ Registers a new user.
       "userId": 123
     }
     ```
-    *(Note: `userId` is returned by the current backend implementation)*
 *   **Error Responses:**
     *   `400 Bad Request`: If any required fields are missing or input is malformed.
         ```json
@@ -29,15 +28,9 @@ Registers a new user.
         ```json
         { "error": "Username already exists." }
         ```
-        ```json
-        { "error": "Email already exists." }
-        ```
     *   `500 Internal Server Error`: If there's a server-side issue.
         ```json
         { "error": "Error registering user." }
-        ```
-        ```json
-        { "error": "Server error during registration." }
         ```
 
 ### `POST /api/login`
@@ -50,53 +43,14 @@ Logs in an existing user.
     ```json
     {
       "message": "Login successful.",
-      "token": "jwt_token_string",
-      "user": {
-        "id": 1,
-        "username": "testuser",
-        "email": "test@example.com",
-        "full_name": "Test User",
-        "role_name": "researcher"
-      }
-    }
-    ```
-    *(Note: The backend currently returns `message` and `token`. The `user` object in the response was added to the documentation based on common practice and what the frontend store now expects from the login action.)*
-    *Correction: The backend `login` endpoint in `index.js` was updated to return `{ message: 'Login successful.', token: token }`. It does *not* currently return the user object directly on login. The user object is typically fetched via `/api/profile` after login.*
-    *Let's adjust the documentation to reflect the actual backend implementation for the login response, and the frontend `authStore` would then call `fetchProfile`.*
-    ```json
-    {
-      "message": "Login successful.",
-      "token": "jwt_token_string"
-    }
-    ```
-    *(Frontend's `authStore.login` action was modified to expect `response.data.user`. I will document what the backend *currently* provides, and a note can be made if they should be aligned.)*
-    *Re-checking `backend/index.js` for login response. The `tokenPayload` includes `userId`, `username`, `role`. The actual response is `res.json({ message: 'Login successful.', token: token });`. The frontend `auth.js` *simulates* getting the user object right after login for its state, but relies on `fetchProfile` for the full object. The backend API documentation should reflect the API's actual output.*
-
-*   **Actual Success Response (200 OK) from `backend/index.js`:**
-    ```json
-    {
-      "message": "Login successful.",
       "token": "jwt_token_string"
     }
     ```
     *(The JWT token itself contains: `{ userId, username, role }`)*
-
 *   **Error Responses:**
     *   `400 Bad Request`: If username or password are not provided.
-        ```json
-        { "error": "Username and password are required." }
-        ```
     *   `401 Unauthorized`: Invalid username or password.
-        ```json
-        { "error": "Invalid username or password." }
-        ```
-    *   `500 Internal Server Error`: Server-side issues during login.
-        ```json
-        { "error": "Error fetching user." }
-        ```
-        ```json
-        { "error": "Server error during login." }
-        ```
+    *   `500 Internal Server Error`: Server-side issues.
 
 ## Profile Management Endpoints
 
@@ -104,6 +58,7 @@ Logs in an existing user.
 Retrieves the profile information for the authenticated user.
 
 *   **Authentication:** Required (Bearer Token in `Authorization` header).
+*   **Permissions Required:** `view_own_profile` (implicitly granted to any authenticated user by current setup).
 *   **Success Response (200 OK):**
     ```json
     {
@@ -115,24 +70,16 @@ Retrieves the profile information for the authenticated user.
     }
     ```
 *   **Error Responses:**
-    *   `401 Unauthorized`: If the token is missing or invalid. (Handled by `authenticateToken` middleware, typically sends a `401 Unauthorized` status code directly, may not have a JSON body).
-    *   `403 Forbidden`: If the token is valid but does not grant access (e.g., missing `view_own_profile` permission, though this is usually granted to all authenticated users). (Handled by `authorize` middleware).
-        ```json
-        { "error": "Forbidden: Insufficient permissions." }
-        ```
-    *   `404 Not Found`: If the user associated with the valid token is not found in the database.
-        ```json
-        { "error": "User profile not found." }
-        ```
-    *   `500 Internal Server Error`: Server-side issues.
-        ```json
-        { "error": "Error fetching profile data." }
-        ```
+    *   `401 Unauthorized`: Token missing or invalid.
+    *   `403 Forbidden`: Insufficient permissions.
+    *   `404 Not Found`: User not found.
+    *   `500 Internal Server Error`.
 
 ### `PUT /api/profile`
 Allows authenticated users to update their email and/or full name.
 
 *   **Authentication:** Required (Bearer Token).
+*   **Permissions Required:** `edit_own_profile` (implicitly granted to any authenticated user by current setup).
 *   **Request Body:**
     ```json
     {
@@ -144,33 +91,20 @@ Allows authenticated users to update their email and/or full name.
     ```json
     { "message": "Profile updated successfully." }
     ```
-    *(Note: The backend currently returns this message. The frontend store optimistically updates its user state or can re-fetch. For consistency, backend could return the updated user object.)*
 *   **Error Responses:**
-    *   `400 Bad Request`: If no data is provided or input is malformed.
-        ```json
-        { "error": "Nothing to update. Provide email or full_name." }
-        ```
-    *   `401 Unauthorized`: Token missing or invalid.
-    *   `403 Forbidden`: Insufficient permissions (e.g., missing `edit_own_profile`).
-        ```json
-        { "error": "Forbidden: Insufficient permissions." }
-        ```
-    *   `409 Conflict`: If the new email is already in use.
-        ```json
-        { "error": "Email already in use by another account." }
-        ```
-    *   `500 Internal Server Error`: Server-side issues.
-        ```json
-        { "error": "Error updating profile." }
-        ```
+    *   `400 Bad Request`: No data provided.
+    *   `401 Unauthorized`.
+    *   `403 Forbidden`.
+    *   `409 Conflict`: Email already in use.
+    *   `500 Internal Server Error`.
 
 ## Admin Endpoints
 
 ### `GET /api/admin/users`
-Retrieves a list of all users.
+Retrieves a list of all users. (Example, not fully implemented in current codebase but good for structure)
 
 *   **Authentication:** Required (Bearer Token).
-*   **Permissions Required:** `view_all_users` (typically associated with the 'administrator' role).
+*   **Permissions Required:** `view_all_users` (typically 'administrator' role).
 *   **Success Response (200 OK):**
     ```json
     [
@@ -180,27 +114,431 @@ Retrieves a list of all users.
         "email": "admin@example.com",
         "full_name": "Admin User",
         "role_name": "administrator"
-      },
-      {
-        "id": 2,
-        "username": "testuser",
-        "email": "test@example.com",
-        "full_name": "Test User",
-        "role_name": "researcher"
       }
       // ... more users
     ]
     ```
 *   **Error Responses:**
-    *   `401 Unauthorized`: Token missing or invalid.
-    *   `403 Forbidden`: User does not have the `view_all_users` permission.
-        ```json
-        { "error": "Forbidden: Insufficient permissions." }
-        ```
-    *   `500 Internal Server Error`: Server-side issues.
-        ```json
-        { "error": "Error fetching user list." }
-        ```
----
+    *   `401 Unauthorized`.
+    *   `403 Forbidden`.
+    *   `500 Internal Server Error`.
 
-*Note: For 401/403 errors from `authenticateToken` or `authorize` middleware, the response might be a direct status code without a JSON body, or a generic JSON body if the middleware is configured to send one.*
+---
+## Sample Management APIs
+
+Base path for these APIs: `/api`
+
+### Sample Types API
+
+Endpoints for managing sample types.
+
+#### `POST /api/sample-types`
+Creates a new sample type.
+
+*   **Authentication:** Required.
+*   **Permissions Required:** `manage_sample_types`.
+*   **Request Body:**
+    ```json
+    {
+      "name": "Blood",           // string, required
+      "description": "Whole blood sample" // string, optional
+    }
+    ```
+*   **Success Response (201 Created):**
+    ```json
+    {
+      "id": 1,
+      "name": "Blood",
+      "description": "Whole blood sample"
+    }
+    ```
+*   **Error Responses:**
+    *   `400 Bad Request`: `name` is missing.
+    *   `401 Unauthorized`.
+    *   `403 Forbidden`: Insufficient permissions.
+    *   `409 Conflict`: Sample type name already exists.
+    *   `500 Internal Server Error`.
+
+#### `GET /api/sample-types`
+Retrieves a list of all sample types.
+
+*   **Authentication:** Required.
+*   **Permissions Required:** `view_sample_details` AND `manage_sample_types` (due to current middleware logic for arrays of permissions).
+*   **Success Response (200 OK):**
+    ```json
+    [
+      {
+        "id": 1,
+        "name": "Blood",
+        "description": "Whole blood sample"
+      },
+      {
+        "id": 2,
+        "name": "Plasma",
+        "description": "Centrifuged plasma"
+      }
+    ]
+    ```
+*   **Error Responses:**
+    *   `401 Unauthorized`.
+    *   `403 Forbidden`.
+    *   `500 Internal Server Error`.
+
+#### `GET /api/sample-types/:id`
+Retrieves a specific sample type by its ID.
+
+*   **Authentication:** Required.
+*   **Permissions Required:** `view_sample_details` AND `manage_sample_types`.
+*   **Success Response (200 OK):**
+    ```json
+    {
+      "id": 1,
+      "name": "Blood",
+      "description": "Whole blood sample"
+    }
+    ```
+*   **Error Responses:**
+    *   `401 Unauthorized`.
+    *   `403 Forbidden`.
+    *   `404 Not Found`: Sample type with the given ID not found.
+    *   `500 Internal Server Error`.
+
+#### `PUT /api/sample-types/:id`
+Updates an existing sample type.
+
+*   **Authentication:** Required.
+*   **Permissions Required:** `manage_sample_types`.
+*   **Request Body:**
+    ```json
+    {
+      "name": "Updated Type Name", // string, optional
+      "description": "Updated description" // string, optional
+    }
+    ```
+*   **Success Response (200 OK):**
+    ```json
+    {
+      "id": 1,
+      "name": "Updated Type Name",
+      "description": "Updated description"
+    }
+    ```
+*   **Error Responses:**
+    *   `400 Bad Request`: No fields to update or invalid data.
+    *   `401 Unauthorized`.
+    *   `403 Forbidden`.
+    *   `404 Not Found`.
+    *   `409 Conflict`: If updated name conflicts with an existing one.
+    *   `500 Internal Server Error`.
+
+#### `DELETE /api/sample-types/:id`
+Deletes a sample type.
+
+*   **Authentication:** Required.
+*   **Permissions Required:** `manage_sample_types`.
+*   **Success Response (200 OK):**
+    ```json
+    {
+      "message": "Sample type deleted successfully."
+    }
+    ```
+*   **Error Responses:**
+    *   `401 Unauthorized`.
+    *   `403 Forbidden`.
+    *   `404 Not Found`.
+    *   `409 Conflict`: If the sample type is in use (e.g., by samples).
+    *   `500 Internal Server Error`.
+
+---
+### Sources API
+
+Endpoints for managing sample sources. (Structure is similar to Sample Types API)
+
+#### `POST /api/sources`
+Creates a new source.
+
+*   **Authentication:** Required.
+*   **Permissions Required:** `manage_sources`.
+*   **Request Body:** `{ "name": "Clinical Trial A", "description": "Samples from Trial A" }` (`description` optional)
+*   **Success Response (201 Created):** Created source object.
+*   **Errors:** 400, 401, 403, 409, 500.
+
+#### `GET /api/sources`
+Retrieves a list of all sources.
+
+*   **Authentication:** Required.
+*   **Permissions Required:** `view_sample_details` AND `manage_sources`.
+*   **Success Response (200 OK):** Array of source objects.
+*   **Errors:** 401, 403, 500.
+
+#### `GET /api/sources/:id`
+Retrieves a specific source by ID.
+
+*   **Authentication:** Required.
+*   **Permissions Required:** `view_sample_details` AND `manage_sources`.
+*   **Success Response (200 OK):** Source object.
+*   **Errors:** 401, 403, 404, 500.
+
+#### `PUT /api/sources/:id`
+Updates an existing source.
+
+*   **Authentication:** Required.
+*   **Permissions Required:** `manage_sources`.
+*   **Request Body:** `{ "name": "Updated Name", "description": "Updated Desc" }` (fields optional)
+*   **Success Response (200 OK):** Updated source object.
+*   **Errors:** 400, 401, 403, 404, 409, 500.
+
+#### `DELETE /api/sources/:id`
+Deletes a source.
+
+*   **Authentication:** Required.
+*   **Permissions Required:** `manage_sources`.
+*   **Success Response (200 OK):** Success message.
+*   **Errors:** 401, 403, 404, 409, 500.
+
+---
+### Storage Locations API
+
+Endpoints for managing storage locations.
+
+#### `POST /api/storage-locations`
+Creates a new storage location.
+
+*   **Authentication:** Required.
+*   **Permissions Required:** `manage_storage_locations`.
+*   **Request Body:**
+    ```json
+    {
+      "name": "Freezer A1",        // string, required
+      "temperature": -20,         // number, optional
+      "capacity": 100             // integer, optional
+    }
+    ```
+*   **Success Response (201 Created):** Created storage location object (includes `current_load: 0`).
+*   **Errors:** 400, 401, 403, 409, 500.
+
+#### `GET /api/storage-locations`
+Retrieves a list of all storage locations.
+
+*   **Authentication:** Required.
+*   **Permissions Required:** `manage_storage_locations` AND `view_sample_details`.
+*   **Success Response (200 OK):** Array of storage location objects.
+*   **Errors:** 401, 403, 500.
+
+#### `GET /api/storage-locations/:id`
+Retrieves a specific storage location by ID.
+
+*   **Authentication:** Required.
+*   **Permissions Required:** `manage_storage_locations` AND `view_sample_details`.
+*   **Success Response (200 OK):** Storage location object.
+*   **Errors:** 401, 403, 404, 500.
+
+#### `PUT /api/storage-locations/:id`
+Updates an existing storage location.
+
+*   **Authentication:** Required.
+*   **Permissions Required:** `manage_storage_locations`.
+*   **Request Body:**
+    ```json
+    {
+      "name": "Freezer A1 (Updated)", // string, optional
+      "temperature": -22,            // number, optional
+      "capacity": 120,               // integer, optional
+      "current_load": 10             // integer, optional (Note: backend may restrict direct update if samples are managed)
+    }
+    ```
+*   **Success Response (200 OK):** Updated storage location object.
+*   **Errors:** 400, 401, 403, 404, 409, 500.
+
+#### `DELETE /api/storage-locations/:id`
+Deletes a storage location.
+
+*   **Authentication:** Required.
+*   **Permissions Required:** `manage_storage_locations`.
+*   **Success Response (200 OK):** Success message.
+*   **Errors:** 401, 403, 404, 409, 500.
+
+---
+### Samples API
+
+Endpoints for managing individual samples.
+
+#### `POST /api/samples/register`
+Registers a new sample and creates its initial chain of custody entry.
+
+*   **Authentication:** Required.
+*   **Permissions Required:** `register_sample`.
+*   **Request Body:**
+    ```json
+    {
+      "sample_type_id": 1,                 // integer, required
+      "source_id": 1,                      // integer, required
+      "collection_date": "2023-10-01T00:00:00.000Z", // string, required, ISO8601
+      "current_status": "Registered",      // string, required (e.g., 'Registered', 'In Storage')
+      "storage_location_id": null,         // integer, optional (required if current_status is 'In Storage')
+      "notes": "Initial sample registration" // string, optional
+    }
+    ```
+*   **Success Response (201 Created):** The created sample object, including server-generated fields like `id`, `unique_sample_id`, `barcode_qr_code`, `registration_date`, `created_at`, `updated_at`.
+    ```json
+    {
+      "id": 101,
+      "unique_sample_id": "SAMP-1696150000000-XYZ12",
+      "sample_type_id": 1,
+      "source_id": 1,
+      "collection_date": "2023-10-01T00:00:00.000Z",
+      "registration_date": "2023-10-01T10:00:00.000Z",
+      "storage_location_id": null,
+      "current_status": "Registered",
+      "barcode_qr_code": "QR-SAMP-1696150000000-XYZ12",
+      "notes": "Initial sample registration",
+      "created_at": "2023-10-01T10:00:00.000Z",
+      "updated_at": "2023-10-01T10:00:00.000Z"
+    }
+    ```
+*   **Errors:** 400 (missing fields, invalid FKs, invalid status, conditional `storage_location_id` missing), 401, 403, 500.
+
+#### `GET /api/samples`
+Retrieves a list of samples with pagination.
+
+*   **Authentication:** Required.
+*   **Permissions Required:** `view_all_samples` AND `view_sample_details` (due to current middleware logic).
+*   **Query Parameters:**
+    *   `limit` (integer, optional, default: 10): Number of samples per page.
+    *   `offset` (integer, optional, default: 0): Number of samples to skip.
+*   **Success Response (200 OK):**
+    ```json
+    {
+      "data": [
+        {
+          "id": 101,
+          "unique_sample_id": "SAMP-...",
+          "sample_type_name": "Blood", // Joined data
+          "source_name": "Clinical Trial A", // Joined data
+          "collection_date": "2023-10-01T00:00:00.000Z",
+          "current_status": "Registered",
+          "storage_location_name": null // Joined data
+          // ... other core sample fields
+        }
+      ],
+      "pagination": {
+        "limit": 10,
+        "offset": 0,
+        "total_count": 1 // Total number of samples matching query
+      }
+    }
+    ```
+*   **Errors:** 401, 403, 500.
+
+#### `GET /api/samples/:id`
+Retrieves detailed information for a specific sample.
+
+*   **Authentication:** Required.
+*   **Permissions Required:** `view_sample_details` AND `view_all_samples`.
+*   **Success Response (200 OK):** Detailed sample object with joined names (e.g., `sample_type_name`, `source_name`, `storage_location_name`).
+    ```json
+    {
+      "id": 101,
+      "unique_sample_id": "SAMP-...",
+      "sample_type_id": 1,
+      "source_id": 1,
+      "collection_date": "...",
+      "registration_date": "...",
+      "storage_location_id": null,
+      "current_status": "Registered",
+      "barcode_qr_code": "QR-SAMP-...",
+      "notes": "...",
+      "created_at": "...",
+      "updated_at": "...",
+      "sample_type_name": "Blood",
+      "source_name": "Clinical Trial A",
+      "storage_location_name": null
+    }
+    ```
+*   **Errors:** 401, 403, 404, 500.
+
+#### `PUT /api/samples/:id/status`
+Updates the status and/or location of a sample. Creates a new chain of custody entry.
+
+*   **Authentication:** Required.
+*   **Permissions Required:** `update_sample_status`.
+*   **Request Body:**
+    ```json
+    {
+      "current_status": "In Storage",     // string, required
+      "storage_location_id": 2,         // integer, optional (required if new status is 'In Storage')
+      "notes": "Moved to primary freezer" // string, optional
+    }
+    ```
+*   **Success Response (200 OK):** The updated sample object (with joined names).
+*   **Errors:** 400 (invalid status, missing/invalid `storage_location_id` if required), 401, 403, 404 (sample or storage location not found), 500.
+
+#### `GET /api/samples/:id/barcode`
+Retrieves barcode data for a sample.
+
+*   **Authentication:** Required.
+*   **Permissions Required:** `generate_barcode` AND `view_sample_details`.
+*   **Success Response (200 OK):**
+    ```json
+    {
+      "sample_id": 101,
+      "unique_sample_id": "SAMP-...",
+      "barcode_qr_code": "QR-SAMP-..."
+    }
+    ```
+*   **Errors:** 401, 403, 404, 500.
+
+#### `GET /api/samples/:id/lifecycle`
+Retrieves the lifecycle history (chain of custody) for a sample. *Currently an alias for `/chainofcustody`.*
+
+*   **Authentication:** Required.
+*   **Permissions Required:** `view_sample_lifecycle`.
+*   **Success Response (200 OK):** Array of chain of custody event objects, ordered by timestamp. Each object includes joined user details (`user_username`, `user_full_name`) and location names (`previous_location_name`, `new_location_name`).
+    ```json
+    [
+      {
+        "id": 1,
+        "sample_id": 101,
+        "user_id": 1,
+        "action": "Registered",
+        "timestamp": "2023-10-01T10:00:00.000Z",
+        "previous_location_id": null,
+        "new_location_id": null,
+        "notes": "Sample registered into the system.",
+        "user_username": "testadmin",
+        "user_full_name": "Test Admin",
+        "previous_location_name": null,
+        "new_location_name": null
+      }
+      // ... more events
+    ]
+    ```
+*   **Errors:** 401, 403, 404 (if sample not found before querying CoC), 500.
+
+#### `GET /api/samples/:id/chainofcustody`
+Retrieves the full chain of custody for a sample.
+
+*   **Authentication:** Required.
+*   **Permissions Required:** `view_sample_lifecycle` AND `manage_chain_of_custody`.
+*   **Success Response (200 OK):** Same as `/lifecycle`. Array of CoC event objects.
+*   **Errors:** 401, 403, 404, 500.
+
+#### `POST /api/samples/:id/chainofcustody`
+Adds a generic (manual) entry to the sample's chain of custody.
+
+*   **Authentication:** Required.
+*   **Permissions Required:** `manage_chain_of_custody`.
+*   **Request Body:**
+    ```json
+    {
+      "action": "Manual Inspection",       // string, required
+      "notes": "Checked sample integrity.", // string, optional
+      "previous_location_id": 2,        // integer, optional
+      "new_location_id": 2                // integer, optional
+    }
+    ```
+*   **Success Response (201 Created):** The created chain of custody entry object.
+*   **Errors:** 400 (missing `action`, invalid location IDs), 401, 403, 404 (sample not found), 500.
+
+---
+*Note: For 401/403 errors from `authenticateToken` or `authorize` middleware, the response might be a direct status code without a JSON body, or a generic JSON body if the middleware is configured to send one. For routes where multiple permissions are listed (e.g., `authorize(['permA', 'permB'])`), the current backend middleware requires the user to possess ALL listed permissions.*
