@@ -98,7 +98,14 @@ function createPermissionsTable() {
       if (err) return closeDbAndExit(false, `Error counting permissions: ${err.message}`);
 
       if (row.count === 0) {
-        const permissions = ['create_user', 'manage_inventory', 'view_reports', 'delete_user', 'edit_settings'];
+        const permissions = [
+          // Existing
+          'create_user', 'manage_inventory', 'view_reports', 'delete_user', 'edit_settings',
+          // New Sample Management Permissions
+          'register_sample', 'view_sample_details', 'update_sample_status', 'generate_barcode',
+          'manage_storage_locations', 'view_sample_lifecycle', 'manage_chain_of_custody',
+          'manage_sample_types', 'manage_sources', 'view_all_samples'
+        ];
         const stmt = db.prepare("INSERT INTO permissions (name) VALUES (?)");
         let permsInserted = 0;
         let permsAttempted = 0;
@@ -145,6 +152,94 @@ function createUsersTable() {
   });
 }
 
+// START: Sample Management Tables
+
+function createSampleTypesTable() {
+  db.run(`CREATE TABLE IF NOT EXISTS sample_types (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT UNIQUE NOT NULL,
+    description TEXT
+  )`, (err) => {
+    if (err) return closeDbAndExit(false, `Error creating sample_types table: ${err.message}`);
+    console.log('Sample_types table ensured.');
+    createSourcesTable(); // Next table
+  });
+}
+
+function createSourcesTable() {
+  db.run(`CREATE TABLE IF NOT EXISTS sources (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT UNIQUE NOT NULL,
+    description TEXT
+  )`, (err) => {
+    if (err) return closeDbAndExit(false, `Error creating sources table: ${err.message}`);
+    console.log('Sources table ensured.');
+    createStorageLocationsTable(); // Next table
+  });
+}
+
+function createStorageLocationsTable() {
+  db.run(`CREATE TABLE IF NOT EXISTS storage_locations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT UNIQUE NOT NULL,
+    temperature REAL,
+    capacity INTEGER,
+    current_load INTEGER DEFAULT 0
+  )`, (err) => {
+    if (err) return closeDbAndExit(false, `Error creating storage_locations table: ${err.message}`);
+    console.log('Storage_locations table ensured.');
+    createSamplesTable(); // Next table
+  });
+}
+
+function createSamplesTable() {
+  db.run(`CREATE TABLE IF NOT EXISTS samples (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    unique_sample_id TEXT UNIQUE NOT NULL,
+    sample_type_id INTEGER,
+    source_id INTEGER,
+    collection_date TEXT,
+    registration_date TEXT DEFAULT CURRENT_TIMESTAMP,
+    storage_location_id INTEGER,
+    current_status TEXT NOT NULL CHECK(current_status IN ('Registered', 'In Storage', 'In Analysis', 'Discarded', 'Archived')),
+    barcode_qr_code TEXT UNIQUE,
+    notes TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (sample_type_id) REFERENCES sample_types(id),
+    FOREIGN KEY (source_id) REFERENCES sources(id),
+    FOREIGN KEY (storage_location_id) REFERENCES storage_locations(id)
+  )`, (err) => {
+    if (err) return closeDbAndExit(false, `Error creating samples table: ${err.message}`);
+    console.log('Samples table ensured.');
+    createChainOfCustodyTable(); // Next table
+  });
+}
+
+function createChainOfCustodyTable() {
+  db.run(`CREATE TABLE IF NOT EXISTS chain_of_custody (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sample_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    action TEXT NOT NULL,
+    timestamp TEXT DEFAULT CURRENT_TIMESTAMP,
+    previous_location_id INTEGER,
+    new_location_id INTEGER,
+    notes TEXT,
+    FOREIGN KEY (sample_id) REFERENCES samples(id),
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (previous_location_id) REFERENCES storage_locations(id),
+    FOREIGN KEY (new_location_id) REFERENCES storage_locations(id)
+  )`, (err) => {
+    if (err) return closeDbAndExit(false, `Error creating chain_of_custody table: ${err.message}`);
+    console.log('Chain_of_custody table ensured.');
+    // This is the last table in the new sequence
+    closeDbAndExit(true, 'Database setup script finished successfully with Sample Management tables.');
+  });
+}
+
+// END: Sample Management Tables
+
 function createRolePermissionsTable() {
   db.run(`CREATE TABLE IF NOT EXISTS role_permissions (
     role_id INTEGER NOT NULL,
@@ -160,37 +255,95 @@ function createRolePermissionsTable() {
       if (err) return closeDbAndExit(false, `Error counting role_permissions: ${err.message}`);
 
       if (row.count === 0) {
-        const assignments = [
-          { role_id: 3, permission_id: 3 }, { role_id: 3, permission_id: 2 },
-          { role_id: 2, permission_id: 3 }, { role_id: 2, permission_id: 2 }, { role_id: 2, permission_id: 1 },
-          { role_id: 1, permission_id: 1 }, { role_id: 1, permission_id: 2 }, { role_id: 1, permission_id: 3 }, { role_id: 1, permission_id: 4 }, { role_id: 1, permission_id: 5 },
-        ];
+        // Define permissions per role by name
+        const rolePermissionsMap = {
+          'researcher': [
+            'view_reports', 'manage_inventory', // Existing
+            'register_sample', 'view_sample_details', 'update_sample_status',
+            'generate_barcode', 'view_sample_lifecycle', 'manage_chain_of_custody'
+          ],
+          'lab_manager': [
+            'view_reports', 'manage_inventory', 'create_user', // Existing
+            'register_sample', 'view_sample_details', 'update_sample_status',
+            'generate_barcode', 'view_sample_lifecycle', 'manage_chain_of_custody', // Researcher's sample perms
+            'manage_storage_locations', 'manage_sample_types', 'manage_sources', 'view_all_samples'
+          ],
+          'administrator': [] // Admin gets all, will be handled separately
+        };
 
-        const stmt = db.prepare("INSERT INTO role_permissions (role_id, permission_id) VALUES (?, ?)");
-        let assignmentsDone = 0;
-        let assignmentsAttempted = 0;
-        assignments.forEach(assign => stmt.run([assign.role_id, assign.permission_id], function(runErr) {
-            assignmentsAttempted++;
-            if (runErr) console.error(`Error assigning permission ${assign.permission_id} to role ${assign.role_id}: ${runErr.message}`);
-            else assignmentsDone++;
+        // Fetch all roles and permissions to map names to IDs
+        db.all("SELECT id, name FROM roles", [], (err, roles) => {
+          if (err) return closeDbAndExit(false, `Error fetching roles: ${err.message}`);
+          db.all("SELECT id, name FROM permissions", [], (err, permissions) => {
+            if (err) return closeDbAndExit(false, `Error fetching permissions: ${err.message}`);
 
-            if (assignmentsAttempted === assignments.length) { // All run calls have finished
-                stmt.finalize(finalizeErr => {
-                    if (finalizeErr) return closeDbAndExit(false, `Error finalizing role_permissions insertion: ${finalizeErr.message}`);
-                    console.log(`${assignmentsDone} default role_permissions inserted.`);
-                    closeDbAndExit(true, 'Database setup script finished successfully.');
+            const roleNameToId = roles.reduce((acc, role) => { acc[role.name] = role.id; return acc; }, {});
+            const permNameToId = permissions.reduce((acc, perm) => { acc[perm.name] = perm.id; return acc; }, {});
+
+            const assignments = [];
+            for (const roleName in rolePermissionsMap) {
+              const roleId = roleNameToId[roleName];
+              if (!roleId) {
+                console.warn(`Role ${roleName} not found, skipping assignments.`);
+                continue;
+              }
+
+              if (roleName === 'administrator') {
+                // Administrator gets all permissions
+                for (const perm of permissions) {
+                  assignments.push({ role_id: roleId, permission_id: perm.id });
+                }
+              } else {
+                rolePermissionsMap[roleName].forEach(permName => {
+                  const permId = permNameToId[permName];
+                  if (permId) {
+                    assignments.push({ role_id: roleId, permission_id: permId });
+                  } else {
+                    console.warn(`Permission ${permName} for role ${roleName} not found, skipping.`);
+                  }
                 });
+              }
             }
-        }));
-        if (assignments.length === 0) {
-             stmt.finalize(finalizeErr => { // Should not happen with current assignments
-                if (finalizeErr) return closeDbAndExit(false, `Error finalizing role_permissions (no assignments): ${finalizeErr.message}`);
-                closeDbAndExit(true, 'No role_permission assignments to perform.');
-             });
-        }
+
+            if (assignments.length === 0) {
+              console.log('No role-permission assignments to make.');
+              createSampleTypesTable(); // Proceed to next step
+              return;
+            }
+
+            const stmt = db.prepare("INSERT INTO role_permissions (role_id, permission_id) VALUES (?, ?)");
+            let assignmentsDone = 0;
+            let assignmentsAttempted = 0;
+
+            assignments.forEach(assign => {
+              stmt.run([assign.role_id, assign.permission_id], function(runErr) {
+                assignmentsAttempted++;
+                if (runErr) {
+                  // It's possible an assignment already exists if script is re-run, log as warning
+                  if (runErr.message.includes('UNIQUE constraint failed')) {
+                     console.warn(`Warning: Role-permission assignment already exists: role_id ${assign.role_id}, permission_id ${assign.permission_id}.`);
+                     assignmentsDone++; // Count it as "done" for completion logic
+                  } else {
+                    console.error(`Error assigning permission ID ${assign.permission_id} to role ID ${assign.role_id}: ${runErr.message}`);
+                  }
+                } else {
+                  assignmentsDone++;
+                }
+
+                if (assignmentsAttempted === assignments.length) {
+                  stmt.finalize(finalizeErr => {
+                    if (finalizeErr) return closeDbAndExit(false, `Error finalizing role_permissions insertion: ${finalizeErr.message}`);
+                    console.log(`${assignmentsDone} role-permission assignments processed.`);
+                    createSampleTypesTable(); // Next step
+                  });
+                }
+              });
+            });
+          });
+        });
       } else {
-        console.log('Role_permissions table already populated.');
-        closeDbAndExit(true, 'Database setup script finished (tables already populated).');
+        console.log('Role_permissions table already populated or seeding logic skipped.');
+        createSampleTypesTable(); // Proceed to next step
       }
     });
   });

@@ -391,6 +391,10 @@ app.get('/api/test', (req, res) => {
   });
 });
 
+// Import and use Sample Management routes
+const sampleApiRoutes = require('./routes/samples');
+app.use('/api', sampleApiRoutes);
+
 // AFTER all API routes, add the catch-all for SPA (production only)
 if (process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'test_production_build') {
   const frontendDistPath = path.resolve(__dirname, '..', 'frontend', 'dist');
@@ -411,4 +415,4 @@ if (process.env.NODE_ENV !== 'test') { // Do not start server if in test environ
   });
 }
 
-module.exports = { app, db }; // Export for testing
+module.exports = { app, db, authenticateToken, authorize }; // Export for testing and for use in other route files
