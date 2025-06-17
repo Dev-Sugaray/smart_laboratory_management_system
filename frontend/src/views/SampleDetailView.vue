@@ -124,6 +124,119 @@
         :historyEvents="sampleCoC"
         :isLoading="isLoadingCoC"
       />
+
+      <!-- Test Requests Section -->
+      <div class="box tests-section mt-5">
+        <h2 class="title is-4">Test Requests for this Sample</h2>
+        <button
+            @click="showRequestTestsModal = true"
+            class="button is-primary is-small mb-3"
+            :disabled="isLoadingTestsForSample || isLoadingAllTests || isLoadingAllExperiments"
+            title="Load test definitions and experiments before requesting"
+        >
+          Request New Test(s)
+        </button>
+
+        <div v-if="isLoadingTestsForSample" class="loading-indicator">Loading tests for this sample...</div>
+        <div v-if="fetchSampleTestsError" class="notification is-danger is-light">
+            Error loading tests: {{ fetchSampleTestsError }}
+        </div>
+
+        <div v-if="!isLoadingTestsForSample && sampleTestsForCurrent.length === 0 && !fetchSampleTestsError" class="has-text-grey">
+          No tests requested for this sample yet.
+        </div>
+
+        <table v-if="sampleTestsForCurrent.length > 0" class="table is-fullwidth is-striped is-narrow is-hoverable">
+          <thead>
+            <tr>
+              <th>Test Name</th>
+              <th>Status</th>
+              <th>Requested At</th>
+              <th>Assigned To</th>
+              <th>Results</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="st in sampleTestsForCurrent" :key="st.sample_test_id">
+              <td>{{ st.test_name }} <span class="has-text-grey is-size-7">(ID: {{ st.test_id }})</span></td>
+              <td><span :class="getSampleTestStatusClass(st.status)">{{ st.status }}</span></td>
+              <td>{{ formatDate(st.requested_at, true) }}</td>
+              <td>{{ st.assigned_to_username || 'N/A' }}</td>
+              <td style="white-space: pre-wrap; max-width: 200px; overflow-wrap: break-word;">{{ st.results || 'N/A' }}</td>
+              <td>
+                <router-link
+                  :to="`/sample-tests/${st.sample_test_id}`"
+                  class="button is-small is-link is-outlined"
+                  title="View/Update Test Run Details"
+                >
+                  Details
+                </router-link>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <!-- End Test Requests Section -->
+
+      <!-- Modal for Requesting New Tests -->
+      <div v-if="showRequestTestsModal" class="modal is-active">
+        <div class="modal-background" @click="showRequestTestsModal = false"></div>
+        <div class="modal-card">
+          <header class="modal-card-head">
+            <p class="modal-card-title">Request New Test(s) for Sample: {{ sampleDetails.unique_sample_id }}</p>
+            <button class="delete" aria-label="close" @click="showRequestTestsModal = false"></button>
+          </header>
+          <section class="modal-card-body">
+            <div v-if="isSubmittingTestRequestError" class="notification is-danger is-light mb-3">
+              <button class="delete" @click="clearTestRequestError"></button>
+              {{ isSubmittingTestRequestError }}
+            </div>
+            <div class="field">
+              <label class="label">Select Test(s) <span class="has-text-danger">*</span></label>
+              <div class="control">
+                <div class="select is-multiple is-fullwidth" :class="{'is-loading': isLoadingAllTests}">
+                  <select multiple size="5" v-model="newTestRequest.test_ids" :disabled="isLoadingAllTests">
+                    <option v-if="isLoadingAllTests" disabled>Loading tests...</option>
+                    <option v-for="testDef in allTests" :key="testDef.id" :value="testDef.id">
+                      {{ testDef.name }}
+                    </option>
+                  </select>
+                </div>
+                <p v-if="!isLoadingAllTests && allTests.length === 0" class="help is-info">No test definitions available. Please create test definitions first.</p>
+              </div>
+            </div>
+            <div class="field">
+              <label class="label">Associate with Experiment (Optional)</label>
+              <div class="control">
+                <div class="select is-fullwidth" :class="{'is-loading': isLoadingAllExperiments}">
+                  <select v-model="newTestRequest.experiment_id" :disabled="isLoadingAllExperiments">
+                    <option v-if="isLoadingAllExperiments" disabled>Loading experiments...</option>
+                    <option :value="null">None</option>
+                    <option v-for="exp in allExperiments" :key="exp.id" :value="exp.id">
+                      {{ exp.name }}
+                    </option>
+                  </select>
+                </div>
+                 <p v-if="!isLoadingAllExperiments && allExperiments.length === 0" class="help is-info">No experiments available.</p>
+              </div>
+            </div>
+          </section>
+          <footer class="modal-card-foot is-justify-content-flex-end">
+            <button class="button" @click="showRequestTestsModal = false" :disabled="isSubmittingTestRequest">Cancel</button>
+            <button
+                class="button is-success"
+                @click="handleRequestNewTests"
+                :class="{'is-loading': isSubmittingTestRequest}"
+                :disabled="isSubmittingTestRequest || newTestRequest.test_ids.length === 0 || isLoadingAllTests || isLoadingAllExperiments"
+            >
+              Request Selected Test(s)
+            </button>
+          </footer>
+        </div>
+      </div>
+      <!-- End Modal for Requesting New Tests -->
+
     </div>
   </div>
 </template>
@@ -131,51 +244,91 @@
 <script setup>
 import { onMounted, computed, ref, watch } from 'vue';
 import { useSampleManagementStore } from '@/stores/sampleManagement';
+import { useSampleTestStore } from '@/stores/sampleTests'; // Import the new store
+import { useTestStore } from '@/stores/tests'; // To get test definitions for selection
+import { useExperimentStore } from '@/stores/experiments'; // To get experiments for selection
 import SampleTrackingHistory from '@/components/sample_management/SampleTrackingHistory.vue';
+// import RequestSampleTestsForm from '@/components/RequestSampleTestsForm.vue'; // If using a separate component
 
 const props = defineProps({
   id: { type: [String, Number], required: true }
 });
 
-const store = useSampleManagementStore();
+const sampleMgmtStore = useSampleManagementStore();
+const sampleTestStore = useSampleTestStore();
+const testDefStore = useTestStore(); // For listing available tests
+const experimentStore = useExperimentStore(); // For listing available experiments
 
-const sampleDetails = computed(() => store.currentSample);
-const sampleCoC = computed(() => store.currentSampleCoC);
-const isLoadingSample = computed(() => store.isLoadingDetails);
-const isLoadingCoC = computed(() => store.isLoadingCoC);
-const fetchError = computed(() => store.error); // General fetch error from store
-const availableStorageLocations = computed(() => store.storageLocations);
-const isLoadingStorageLocations = computed(() => store.isLoading); // Assuming global isLoading for this
+// Sample Management Store Data
+const sampleDetails = computed(() => sampleMgmtStore.currentSample);
+const sampleCoC = computed(() => sampleMgmtStore.currentSampleCoC);
+const isLoadingSample = computed(() => sampleMgmtStore.isLoadingDetails);
+const isLoadingCoC = computed(() => sampleMgmtStore.isLoadingCoC);
+const fetchError = computed(() => sampleMgmtStore.error);
+const availableStorageLocations = computed(() => sampleMgmtStore.storageLocations);
+const isLoadingStorageLocations = computed(() => sampleMgmtStore.isLoading);
+
+// Sample Tests Store Data
+const sampleTestsForCurrent = computed(() => sampleTestStore.sampleTestsForCurrentSample);
+const isLoadingTestsForSample = computed(() => sampleTestStore.loading);
+const fetchSampleTestsError = computed(() => sampleTestStore.error);
+
+// Test Definitions Store Data (for modal)
+const allTests = computed(() => testDefStore.tests);
+const isLoadingAllTests = computed(() => testDefStore.loading);
+
+// Experiment Store Data (for modal)
+const allExperiments = computed(() => experimentStore.experiments);
+const isLoadingAllExperiments = computed(() => experimentStore.loading);
+
 
 const showUpdateStatusForm = ref(false);
 const updateStatusData = ref({ current_status: '', storage_location_id: null, notes: '' });
 const statusOptions = ['Registered', 'In Storage', 'In Analysis', 'Archived', 'Discarded'];
 const isSubmittingStatusUpdate = ref(false);
-const formSuccessMessage = ref('');
-const formSubmitError = ref('');
+const formSuccessMessage = ref(''); // Kept for status update success
+const formSubmitError = ref(''); // Kept for status update error
 const formValidationErrors = ref({});
+
+// For New Test Request Modal
+const showRequestTestsModal = ref(false);
+const newTestRequest = ref({
+  test_ids: [],
+  experiment_id: null,
+});
+const isSubmittingTestRequest = ref(false);
+const isSubmittingTestRequestError = ref(null);
 
 
 const fetchData = async () => {
-  store.error = null;
-  store.currentSample = null;
-  store.currentSampleCoC = [];
+  sampleMgmtStore.error = null;
+  sampleMgmtStore.currentSample = null;
+  sampleMgmtStore.currentSampleCoC = [];
+  sampleTestStore.error = null; // Clear sample test errors too
+  sampleTestStore.sampleTestsForCurrentSample = [];
 
-  isSubmittingStatusUpdate.value = false; // Reset submission state
+
+  isSubmittingStatusUpdate.value = false;
   formSuccessMessage.value = '';
   formSubmitError.value = '';
   formValidationErrors.value = {};
+  isSubmittingTestRequestError.value = null;
+  newTestRequest.value = { test_ids: [], experiment_id: null };
 
 
   console.log(`Fetching data for sample ID: ${props.id}`);
   try {
     await Promise.all([
-      store.fetchSampleDetails(props.id),
-      store.fetchSampleChainOfCustody(props.id),
-      store.fetchStorageLocations() // Ensure locations are available for the form
+      sampleMgmtStore.fetchSampleDetails(props.id),
+      sampleMgmtStore.fetchSampleChainOfCustody(props.id),
+      sampleMgmtStore.fetchStorageLocations(), // For status update form
+      sampleTestStore.fetchSampleTestsForSample(props.id), // Fetch tests for this sample
+      testDefStore.fetchTests(), // For "Request New Test" modal
+      experimentStore.fetchExperiments() // For "Request New Test" modal
     ]);
   } catch (error) {
     console.error('Error fetching initial data for detail view:', error.message);
+    // Errors are typically handled and stored within each store module
   }
 };
 
@@ -194,9 +347,8 @@ const openUpdateStatusForm = () => {
       notes: ''
     };
   }
-  // Fetch storage locations if not already loaded or might be stale
-  if(availableStorageLocations.value.length === 0) {
-      store.fetchStorageLocations();
+  if(availableStorageLocations.value.length === 0 && !isLoadingStorageLocations.value) { // check loading state too
+      sampleMgmtStore.fetchStorageLocations();
   }
   showUpdateStatusForm.value = true;
 };
@@ -221,16 +373,14 @@ const handleUpdateStatusSubmit = async () => {
 
   isSubmittingStatusUpdate.value = true;
   try {
-    // Ensure storage_location_id is null if not 'In Storage'
     const payload = { ...updateStatusData.value };
     if (payload.current_status !== 'In Storage') {
       payload.storage_location_id = null;
     }
 
-    await store.updateSampleStatus({ sampleId: props.id, statusData: payload });
+    await sampleMgmtStore.updateSampleStatus({ sampleId: props.id, statusData: payload });
     formSuccessMessage.value = 'Sample status updated successfully!';
     closeUpdateStatusForm();
-    // Data refreshes via store actions (fetchSampleDetails, fetchSampleChainOfCustody)
   } catch (error) {
     formSubmitError.value = error.message || 'Failed to update sample status.';
     console.error('Error updating sample status (view):', error.message);
@@ -239,10 +389,37 @@ const handleUpdateStatusSubmit = async () => {
   }
 };
 
-const clearFetchError = () => store.error = null;
+const handleRequestNewTests = async () => {
+  isSubmittingTestRequestError.value = null;
+  if (newTestRequest.value.test_ids.length === 0) {
+    isSubmittingTestRequestError.value = "Please select at least one test.";
+    return;
+  }
+  isSubmittingTestRequest.value = true;
+  try {
+    await sampleTestStore.requestTestsForSample(props.id, {
+      test_ids: newTestRequest.value.test_ids,
+      experiment_id: newTestRequest.value.experiment_id,
+    });
+    showRequestTestsModal.value = false;
+    newTestRequest.value = { test_ids: [], experiment_id: null }; // Reset form
+    // Success message could be shown, sampleTestStore.fetchSampleTestsForSample is called in action
+  } catch (error) {
+    console.error('Error requesting new tests:', error);
+    isSubmittingTestRequestError.value = sampleTestStore.error || error.message || "Failed to request tests.";
+  } finally {
+    isSubmittingTestRequest.value = false;
+  }
+};
+
+
+const clearFetchError = () => sampleMgmtStore.error = null; // Clear general error
 const clearFormSuccessMessage = () => formSuccessMessage.value = '';
 const clearFormSubmitError = () => formSubmitError.value = '';
 
+const clearTestRequestError = () => { // Added this
+    isSubmittingTestRequestError.value = null;
+}
 
 const formatDate = (dateString, includeTime = false) => {
   if (!dateString) return 'N/A';
@@ -253,13 +430,32 @@ const formatDate = (dateString, includeTime = false) => {
   return new Date(dateString).toLocaleDateString(undefined, options);
 };
 
-const getStatusClass = (status) => {
+const getStatusClass = (status) => { // For sample status
   switch (status) {
     case 'Registered': return 'tag is-light'; case 'In Storage': return 'tag is-info';
     case 'In Analysis': return 'tag is-warning'; case 'Discarded': return 'tag is-danger';
     case 'Archived': return 'tag is-dark'; default: return 'tag';
   }
 };
+
+const getSampleTestStatusClass = (status) => { // For sample_test status
+   switch (status) {
+    case 'Pending': return 'tag is-light is-rounded';
+    case 'In Progress': return 'tag is-warning is-rounded';
+    case 'Completed': return 'tag is-success is-rounded';
+    case 'Validated': return 'tag is-primary is-rounded';
+    case 'Approved': return 'tag is-link is-rounded'; // Or another distinct color
+    case 'Rejected': return 'tag is-danger is-rounded';
+    default: return 'tag is-rounded';
+  }
+};
+
+const clearFormMessages = () => { // Combined clear messages
+    formSubmitError.value = '';
+    formSuccessMessage.value = ''; // Clear success from status update
+    isSubmittingTestRequestError.value = null; // Clear error from test request
+};
+
 </script>
 
 <style scoped>

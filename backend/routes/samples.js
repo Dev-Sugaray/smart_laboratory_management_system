@@ -1030,4 +1030,314 @@ router.post(
   }
 );
 
+// ==== Sample Testing related Endpoints (within samples context) ====
+
+// POST /api/samples/:id/tests - Request one or more tests for a specific sample
+router.post('/samples/:sample_id/tests', authenticateToken, authorize(['request_sample_tests']), async (req, res) => {
+  const { sample_id } = req.params;
+  const { test_ids, experiment_id } = req.body; // experiment_id is optional
+  const requested_by_user_id = req.user.userId;
+
+  if (!test_ids || !Array.isArray(test_ids) || test_ids.length === 0) {
+    return res.status(400).json({ error: 'test_ids must be a non-empty array.' });
+  }
+
+  // --- Validation ---
+  // 1. Check if sample exists
+  const sampleExists = await new Promise((resolve, reject) => {
+    db.get("SELECT id FROM samples WHERE id = ?", [sample_id], (err, row) => {
+      if (err) reject(new Error('Failed to verify sample.'));
+      else resolve(!!row);
+    });
+  });
+  if (!sampleExists) {
+    return res.status(404).json({ error: 'Sample not found.' });
+  }
+
+  // 2. Check if experiment exists (if provided)
+  if (experiment_id) {
+    const experimentExists = await new Promise((resolve, reject) => {
+      db.get("SELECT id FROM experiments WHERE id = ?", [experiment_id], (err, row) => {
+        if (err) reject(new Error('Failed to verify experiment.'));
+        else resolve(!!row);
+      });
+    });
+    if (!experimentExists) {
+      return res.status(404).json({ error: `Experiment with ID ${experiment_id} not found.` });
+    }
+  }
+
+  // 3. Check if all test_ids exist and are valid
+  const validTestIds = [];
+  for (const test_id of test_ids) {
+    const testExists = await new Promise((resolve, reject) => {
+      db.get("SELECT id FROM tests WHERE id = ?", [test_id], (err, row) => {
+        if (err) reject(new Error(`Failed to verify test ID ${test_id}.`));
+        else resolve(row);
+      });
+    });
+    if (!testExists) {
+      return res.status(400).json({ error: `Test with ID ${test_id} not found.` });
+    }
+    validTestIds.push(testExists.id); // Store the actual ID from DB
+  }
+
+  // --- Database Operations ---
+  // Insert each test request into sample_tests
+  // Using a transaction to ensure all or nothing
+  db.serialize(() => {
+    db.run("BEGIN TRANSACTION", (beginErr) => {
+        if (beginErr) {
+            console.error('Failed to begin transaction for sample test requests:', beginErr.message);
+            return res.status(500).json({ error: 'Server error starting test request process.' });
+        }
+
+        const stmt = db.prepare(`
+          INSERT INTO sample_tests
+            (sample_id, test_id, experiment_id, requested_by_user_id, status, requested_at)
+          VALUES (?, ?, ?, ?, 'Pending', CURRENT_TIMESTAMP)
+        `);
+
+        let operationsCompleted = 0;
+        let encounteredError = null;
+        const createdEntries = [];
+
+        validTestIds.forEach(test_id => {
+          stmt.run([sample_id, test_id, experiment_id || null, requested_by_user_id], function(runErr) {
+            operationsCompleted++;
+            if (runErr) {
+              if (runErr.message.includes('UNIQUE constraint failed')) { // sample_id, test_id, experiment_id might need to be unique together for a certain status
+                // This is a simplified check. A proper unique constraint on (sample_id, test_id, experiment_id) for 'Pending' status might be needed.
+                // Or (sample_id, test_id) if a test can only be requested once for a sample regardless of experiment or if experiment is null.
+                // For now, we assume a test can be requested multiple times if for different experiments or if one is null.
+                // If a strict "once per sample-test" is needed, the DB schema needs a unique constraint.
+                console.warn(`Potential duplicate test request for sample ${sample_id}, test ${test_id}, experiment ${experiment_id}.`);
+                // Depending on desired behavior, this might be an error or just a warning.
+                // For now, let it proceed, but log it. The primary key of sample_tests (id) will ensure row uniqueness.
+              } else {
+                encounteredError = runErr;
+                console.error('Error inserting sample_test entry:', runErr.message);
+              }
+            } else {
+                createdEntries.push({ id: this.lastID, sample_id, test_id, experiment_id, requested_by_user_id, status: 'Pending' });
+            }
+
+            if (operationsCompleted === validTestIds.length) {
+              stmt.finalize(async (finalizeErr) => {
+                if (finalizeErr) {
+                    encounteredError = encounteredError || finalizeErr; // Keep first error
+                    console.error('Error finalizing statement for sample_tests insertion:', finalizeErr.message);
+                }
+
+                if (encounteredError) {
+                  db.run("ROLLBACK", () => {
+                    res.status(500).json({ error: 'Failed to request one or more tests for the sample.', details: encounteredError.message });
+                  });
+                } else {
+                  db.run("COMMIT", (commitErr) => {
+                    if (commitErr) {
+                      console.error('Failed to commit transaction for sample test requests:', commitErr.message);
+                      db.run("ROLLBACK"); // Attempt rollback
+                      return res.status(500).json({ error: 'Server error completing test request process.' });
+                    }
+                    res.status(201).json({ message: 'Test(s) requested successfully for the sample.', created_entries: createdEntries });
+                  });
+                }
+              });
+            }
+          });
+        });
+         if (validTestIds.length === 0) { // Should be caught earlier, but as a safe guard
+            db.run("ROLLBACK"); // Nothing to do, rollback
+            return res.status(400).json({ error: 'No valid tests to request.' });
+        }
+    });
+  });
+});
+
+// GET /api/samples/:sample_id/tests - Get all tests requested for a specific sample
+router.get('/samples/:sample_id/tests', authenticateToken, authorize(['view_sample_details']), async (req, res) => {
+  const { sample_id } = req.params;
+
+  // 1. Check if sample exists
+  const sampleExists = await new Promise((resolve, reject) => {
+    db.get("SELECT id FROM samples WHERE id = ?", [sample_id], (err, row) => {
+      if (err) reject(new Error('Failed to verify sample.'));
+      else resolve(!!row);
+    });
+  });
+  if (!sampleExists) {
+    return res.status(404).json({ error: 'Sample not found.' });
+  }
+
+  // 2. Fetch associated tests
+  const sql = `
+    SELECT
+      st.id as sample_test_id,
+      st.test_id,
+      t.name as test_name,
+      t.description as test_description,
+      t.protocol as test_protocol,
+      st.experiment_id,
+      e.name as experiment_name,
+      st.status,
+      st.results,
+      st.requested_by_user_id,
+      u_req.username as requested_by_username,
+      st.assigned_to_user_id,
+      u_assign.username as assigned_to_username,
+      st.requested_at,
+      st.result_entry_date,
+      st.validated_at,
+      st.validated_by_user_id,
+      u_val.username as validated_by_username,
+      st.approved_at,
+      st.approved_by_user_id,
+      u_app.username as approved_by_username,
+      st.notes
+    FROM sample_tests st
+    JOIN tests t ON st.test_id = t.id
+    JOIN users u_req ON st.requested_by_user_id = u_req.id
+    LEFT JOIN experiments e ON st.experiment_id = e.id
+    LEFT JOIN users u_assign ON st.assigned_to_user_id = u_assign.id
+    LEFT JOIN users u_val ON st.validated_by_user_id = u_val.id
+    LEFT JOIN users u_app ON st.approved_by_user_id = u_app.id
+    WHERE st.sample_id = ?
+    ORDER BY st.requested_at DESC
+  `;
+
+  db.all(sql, [sample_id], (err, rows) => {
+    if (err) {
+      console.error('Error fetching tests for sample:', err.message);
+      return res.status(500).json({ error: 'Failed to retrieve tests for the sample.' });
+    }
+    res.json(rows);
+  });
+});
+
+// POST /api/samples/batch-request-tests - Batch request tests for multiple samples
+router.post('/samples/batch-request-tests', authenticateToken, authorize(['request_sample_tests']), async (req, res) => {
+  const { sample_ids, test_ids, experiment_id } = req.body;
+  const requested_by_user_id = req.user.userId;
+
+  if (!sample_ids || !Array.isArray(sample_ids) || sample_ids.length === 0) {
+    return res.status(400).json({ error: 'sample_ids must be a non-empty array.' });
+  }
+  if (!test_ids || !Array.isArray(test_ids) || test_ids.length === 0) {
+    return res.status(400).json({ error: 'test_ids must be a non-empty array.' });
+  }
+
+  // --- Validation ---
+  // Helper to check existence of multiple IDs in a table
+  const checkAllExist = async (table, ids) => {
+    if (!ids || ids.length === 0) return true; // Nothing to check
+    const placeholders = ids.map(() => '?').join(',');
+    const sql = `SELECT COUNT(id) as count FROM ${table} WHERE id IN (${placeholders})`;
+    return new Promise((resolve, reject) => {
+      db.get(sql, ids, (err, row) => {
+        if (err) reject(new Error(`Failed to verify IDs in ${table}.`));
+        else resolve(row.count === ids.length);
+      });
+    });
+  };
+
+  try {
+    if (!(await checkAllExist('samples', sample_ids))) {
+      return res.status(400).json({ error: 'One or more sample IDs are invalid or not found.' });
+    }
+    if (!(await checkAllExist('tests', test_ids))) {
+      return res.status(400).json({ error: 'One or more test IDs are invalid or not found.' });
+    }
+    if (experiment_id) {
+      const experimentExists = await new Promise((resolve, reject) => {
+        db.get("SELECT id FROM experiments WHERE id = ?", [experiment_id], (err, row) => {
+          if (err) reject(new Error('Failed to verify experiment.'));
+          else resolve(!!row);
+        });
+      });
+      if (!experimentExists) {
+        return res.status(404).json({ error: `Experiment with ID ${experiment_id} not found.` });
+      }
+    }
+  } catch (validationError) {
+    console.error("Validation error in batch request:", validationError.message);
+    return res.status(500).json({ error: validationError.message });
+  }
+
+  // --- Database Operations ---
+  db.serialize(() => {
+    db.run("BEGIN TRANSACTION", (beginErr) => {
+      if (beginErr) {
+        console.error('Failed to begin transaction for batch test requests:', beginErr.message);
+        return res.status(500).json({ error: 'Server error starting batch test request process.' });
+      }
+
+      const stmt = db.prepare(`
+        INSERT INTO sample_tests
+          (sample_id, test_id, experiment_id, requested_by_user_id, status, requested_at)
+        VALUES (?, ?, ?, ?, 'Pending', CURRENT_TIMESTAMP)
+      `);
+
+      let operationsAttempted = 0;
+      const totalOperations = sample_ids.length * test_ids.length;
+      let errors = [];
+      const createdEntriesInfo = [];
+
+      sample_ids.forEach(sample_id => {
+        test_ids.forEach(test_id => {
+          operationsAttempted++;
+          stmt.run([sample_id, test_id, experiment_id || null, requested_by_user_id], function(runErr) {
+            if (runErr) {
+              // Log individual errors but continue transaction; decide on rollback strategy later
+              console.error(`Error inserting batch sample_test for sample ${sample_id}, test ${test_id}: ${runErr.message}`);
+              errors.push({ sample_id, test_id, error: runErr.message });
+            } else {
+              createdEntriesInfo.push({ id: this.lastID, sample_id, test_id, experiment_id });
+            }
+
+            if (operationsAttempted === totalOperations) {
+              stmt.finalize(async (finalizeErr) => {
+                if (finalizeErr) {
+                  console.error('Error finalizing statement for batch sample_tests insertion:', finalizeErr.message);
+                  errors.push({ general_error: finalizeErr.message });
+                }
+
+                if (errors.length > 0) {
+                  // Rollback if any error occurred for atomicity.
+                  // Alternative: commit successful ones and report failures. For now, all or nothing.
+                  db.run("ROLLBACK", () => {
+                    res.status(500).json({
+                      error: 'Failed to request some tests in batch.',
+                      details: errors,
+                      message: `${createdEntriesInfo.length} tests were successfully requested before an error occurred. All changes have been rolled back.`
+                    });
+                  });
+                } else {
+                  db.run("COMMIT", (commitErr) => {
+                    if (commitErr) {
+                      console.error('Failed to commit transaction for batch test requests:', commitErr.message);
+                      db.run("ROLLBACK"); // Attempt rollback
+                      return res.status(500).json({ error: 'Server error completing batch test request process.' });
+                    }
+                    res.status(201).json({
+                      message: `Batch test request processed. ${createdEntriesInfo.length} test(s) requested successfully.`,
+                      created_entries_count: createdEntriesInfo.length,
+                      // created_entries: createdEntriesInfo // Could be too verbose
+                    });
+                  });
+                }
+              });
+            }
+          });
+        });
+      });
+       if (totalOperations === 0) { // Should be caught by initial validation, but as a safeguard
+          db.run("ROLLBACK");
+          return res.status(400).json({ error: 'No sample-test combinations to request.' });
+      }
+    });
+  });
+});
+
+
 module.exports = router;

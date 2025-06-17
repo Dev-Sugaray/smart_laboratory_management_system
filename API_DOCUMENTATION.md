@@ -541,4 +541,427 @@ Adds a generic (manual) entry to the sample's chain of custody.
 *   **Errors:** 400 (missing `action`, invalid location IDs), 401, 403, 404 (sample not found), 500.
 
 ---
+## Experiment Management APIs
+
+Base path: `/api`
+
+Endpoints for managing experiments and their associated tests.
+
+### `POST /api/experiments`
+Creates a new experiment.
+
+*   **Authentication:** Required.
+*   **Permissions Required:** `manage_experiments`.
+*   **Request Body:**
+    ```json
+    {
+      "name": "Cell Growth Study",  // string, required
+      "description": "Investigating factors affecting cell growth." // string, optional
+    }
+    ```
+*   **Success Response (201 Created):**
+    ```json
+    {
+      "id": 1,
+      "name": "Cell Growth Study",
+      "description": "Investigating factors affecting cell growth.",
+      "created_at": "YYYY-MM-DDTHH:mm:ss.SSSZ",
+      "updated_at": "YYYY-MM-DDTHH:mm:ss.SSSZ"
+    }
+    ```
+*   **Error Responses:**
+    *   `400 Bad Request`: `name` is missing. (`{ "error": "Experiment name is required." }`)
+    *   `401 Unauthorized`.
+    *   `403 Forbidden`: Insufficient permissions.
+    *   `409 Conflict`: Experiment name already exists. (`{ "error": "Experiment name already exists." }`)
+    *   `500 Internal Server Error`: (`{ "error": "Failed to create experiment." }`)
+
+### `GET /api/experiments`
+Retrieves a list of all experiments.
+
+*   **Authentication:** Required.
+*   **Permissions Required:** `view_experiments`.
+*   **Success Response (200 OK):**
+    ```json
+    [
+      {
+        "id": 1,
+        "name": "Cell Growth Study",
+        "description": "Investigating factors affecting cell growth.",
+        "created_at": "YYYY-MM-DDTHH:mm:ss.SSSZ",
+        "updated_at": "YYYY-MM-DDTHH:mm:ss.SSSZ"
+      }
+      // ... more experiments
+    ]
+    ```
+*   **Error Responses:**
+    *   `401 Unauthorized`.
+    *   `403 Forbidden`.
+    *   `500 Internal Server Error`: (`{ "error": "Failed to retrieve experiments." }`)
+
+### `GET /api/experiments/:id`
+Retrieves a specific experiment by its ID.
+
+*   **Authentication:** Required.
+*   **Permissions Required:** `view_experiments`.
+*   **Success Response (200 OK):**
+    ```json
+    {
+      "id": 1,
+      "name": "Cell Growth Study",
+      "description": "Investigating factors affecting cell growth.",
+      "created_at": "YYYY-MM-DDTHH:mm:ss.SSSZ",
+      "updated_at": "YYYY-MM-DDTHH:mm:ss.SSSZ"
+    }
+    ```
+*   **Error Responses:**
+    *   `401 Unauthorized`.
+    *   `403 Forbidden`.
+    *   `404 Not Found`: (`{ "error": "Experiment not found." }`)
+    *   `500 Internal Server Error`: (`{ "error": "Failed to retrieve experiment." }`)
+
+### `PUT /api/experiments/:id`
+Updates an existing experiment.
+
+*   **Authentication:** Required.
+*   **Permissions Required:** `manage_experiments`.
+*   **Request Body:**
+    ```json
+    {
+      "name": "Updated Cell Study", // string, optional
+      "description": "Updated investigation details." // string, optional
+    }
+    ```
+*   **Success Response (200 OK):**
+    ```json
+    {
+      "message": "Experiment updated successfully.",
+      "id": 1,
+      "changes": 1
+    }
+    ```
+*   **Error Responses:**
+    *   `400 Bad Request`: No fields to update.
+    *   `401 Unauthorized`.
+    *   `403 Forbidden`.
+    *   `404 Not Found`.
+    *   `409 Conflict`: Name conflict.
+    *   `500 Internal Server Error`.
+
+### `DELETE /api/experiments/:id`
+Deletes an experiment. Associated `experiment_tests` entries are cascade deleted.
+
+*   **Authentication:** Required.
+*   **Permissions Required:** `manage_experiments`.
+*   **Success Response (200 OK):**
+    ```json
+    {
+      "message": "Experiment deleted successfully.",
+      "id": 1
+    }
+    ```
+*   **Error Responses:**
+    *   `401 Unauthorized`.
+    *   `403 Forbidden`.
+    *   `404 Not Found`.
+    *   `500 Internal Server Error`.
+
+### `POST /api/experiments/:id/tests`
+Adds a test (test definition) to an experiment. Creates an entry in the `experiment_tests` join table.
+
+*   **Authentication:** Required.
+*   **Permissions Required:** `manage_experiments`.
+*   **Request Body:**
+    ```json
+    {
+      "test_id": 101 // integer, required, ID of the test definition
+    }
+    ```
+*   **Success Response (201 Created):**
+    ```json
+    {
+      "message": "Test added to experiment successfully.",
+      "experiment_id": 1,
+      "test_id": 101
+    }
+    ```
+*   **Error Responses:**
+    *   `400 Bad Request`: `test_id` missing or invalid.
+    *   `401 Unauthorized`.
+    *   `403 Forbidden`.
+    *   `404 Not Found`: Experiment or Test Definition not found.
+    *   `409 Conflict`: Test already associated. (`{ "error": "This test is already associated with this experiment." }`)
+    *   `500 Internal Server Error`.
+
+### `DELETE /api/experiments/:id/tests/:test_id`
+Removes a test definition from an experiment. Deletes an entry from `experiment_tests`.
+
+*   **Authentication:** Required.
+*   **Permissions Required:** `manage_experiments`.
+*   **Success Response (200 OK):**
+    ```json
+    { "message": "Test removed from experiment successfully." }
+    ```
+*   **Error Responses:**
+    *   `401 Unauthorized`.
+    *   `403 Forbidden`.
+    *   `404 Not Found`: Association not found.
+    *   `500 Internal Server Error`.
+
+### `GET /api/experiments/:id/tests`
+Retrieves all test definitions associated with an experiment.
+
+*   **Authentication:** Required.
+*   **Permissions Required:** `view_experiments`.
+*   **Success Response (200 OK):** Array of test definition objects.
+    ```json
+    [
+      { "id": 101, "name": "Blood Glucose Test", /* ...other test_definition fields */ }
+    ]
+    ```
+*   **Error Responses:**
+    *   `401 Unauthorized`.
+    *   `403 Forbidden`.
+    *   `404 Not Found`: Experiment not found.
+    *   `500 Internal Server Error`.
+
+---
+## Test Definition APIs
+
+Base path: `/api`
+
+Endpoints for managing test definitions (templates).
+
+### `POST /api/tests`
+Creates a new test definition.
+
+*   **Authentication:** Required.
+*   **Permissions Required:** `manage_tests`.
+*   **Request Body:**
+    ```json
+    {
+      "name": "CBC Panel",            // string, required
+      "description": "Complete Blood Count panel.", // string, optional
+      "protocol": "Standard hematology protocol..." // string, optional
+    }
+    ```
+*   **Success Response (201 Created):** The created test definition object.
+    ```json
+    {
+      "id": 1,
+      "name": "CBC Panel",
+      "description": "Complete Blood Count panel.",
+      "protocol": "Standard hematology protocol...",
+      "created_at": "YYYY-MM-DDTHH:mm:ss.SSSZ",
+      "updated_at": "YYYY-MM-DDTHH:mm:ss.SSSZ"
+    }
+    ```
+*   **Error Responses:** `400`, `401`, `403`, `409` (name conflict), `500`.
+
+### `GET /api/tests`
+Retrieves a list of all test definitions.
+
+*   **Authentication:** Required.
+*   **Permissions Required:** `view_tests`.
+*   **Success Response (200 OK):** Array of test definition objects.
+*   **Error Responses:** `401`, `403`, `500`.
+
+### `GET /api/tests/:id`
+Retrieves a specific test definition.
+
+*   **Authentication:** Required.
+*   **Permissions Required:** `view_tests`.
+*   **Success Response (200 OK):** Test definition object.
+*   **Error Responses:** `401`, `403`, `404`, `500`.
+
+### `PUT /api/tests/:id`
+Updates a test definition.
+
+*   **Authentication:** Required.
+*   **Permissions Required:** `manage_tests`.
+*   **Request Body:** Optional fields: `name`, `description`, `protocol`.
+*   **Success Response (200 OK):** `{ "message": "Test updated successfully.", "id": 1, "changes": 1 }`
+*   **Error Responses:** `400`, `401`, `403`, `404`, `409` (name conflict), `500`.
+
+### `DELETE /api/tests/:id`
+Deletes a test definition.
+
+*   **Authentication:** Required.
+*   **Permissions Required:** `manage_tests`.
+*   **Success Response (200 OK):** `{ "message": "Test deleted successfully.", "id": 1 }`
+*   **Error Responses:** `401`, `403`, `404`, `409` (if referenced and cascade fails), `500`.
+
+---
+## Sample Testing APIs
+
+Base path: `/api`
+
+Endpoints for managing test runs on samples.
+
+### `POST /api/samples/:sample_id/tests`
+Requests tests for a sample. Creates `sample_tests` entries.
+
+*   **Authentication:** Required.
+*   **Permissions Required:** `request_sample_tests`.
+*   **Request Body:**
+    ```json
+    {
+      "test_ids": [101, 102],   // array of integers, required
+      "experiment_id": 1        // integer, optional
+    }
+    ```
+*   **Success Response (201 Created):**
+    ```json
+    {
+      "message": "Test(s) requested successfully for the sample.",
+      "created_entries": [
+        { "id": 201, "sample_id": 1, "test_id": 101, "experiment_id": 1, "requested_by_user_id": 5, "status": "Pending" }
+        // ... other created entries
+      ]
+    }
+    ```
+*   **Error Responses:** `400`, `401`, `403`, `404` (sample/test/experiment not found), `500`.
+
+### `GET /api/samples/:sample_id/tests`
+Retrieves test runs for a specific sample.
+
+*   **Authentication:** Required.
+*   **Permissions Required:** `view_sample_details`.
+*   **Success Response (200 OK):** Array of `sample_tests` objects with joined details (test name, user names, etc.).
+    ```json
+    [
+      {
+        "sample_test_id": 201, // This is sample_tests.id
+        "test_id": 101,
+        "test_name": "Blood Glucose",
+        "status": "Pending",
+        // ... other fields from sample_tests table and joined user/experiment names
+      }
+    ]
+    ```
+*   **Error Responses:** `401`, `403`, `404` (sample not found), `500`.
+
+### `POST /api/samples/batch-request-tests`
+Batch requests tests for multiple samples.
+
+*   **Authentication:** Required.
+*   **Permissions Required:** `request_sample_tests`.
+*   **Request Body:**
+    ```json
+    {
+      "sample_ids": [1, 2],   // array of integers, required
+      "test_ids": [101, 102],       // array of integers, required
+      "experiment_id": 1            // integer, optional
+    }
+    ```
+*   **Success Response (201 Created):**
+    ```json
+    {
+      "message": "Batch test request processed. X test(s) requested successfully.",
+      "created_entries_count": X
+    }
+    ```
+*   **Error Responses:** `400` (invalid input/IDs), `401`, `403`, `500`. (Rolls back on any partial failure).
+
+### `GET /api/tests/:test_id/samples`
+Retrieves all samples that have had a specific test definition requested, including details of those test runs.
+
+*   **Authentication:** Required.
+*   **Permissions Required:** `view_tests`.
+*   **Success Response (200 OK):** Array of objects, each combining sample information with `sample_tests` entry details for that specific test.
+    ```json
+    [
+      {
+        "sample_id": 1,
+        "unique_sample_id": "SAMP-001",
+        "sample_status": "Registered", // Status of the sample itself
+        "sample_test_id": 201,         // ID of the entry in sample_tests
+        "test_status_for_sample": "Pending", // Status of this test for this sample
+        // ... other relevant fields from sample and sample_tests, and joined names
+      }
+    ]
+    ```
+*   **Error Responses:** `401`, `403`, `404` (test definition not found), `500`.
+
+### `GET /api/sample-tests`
+Retrieves a list of all sample test run entries, potentially with filters.
+
+*   **Authentication:** Required.
+*   **Permissions Required:** `view_tests` (or a more specific permission like `view_all_sample_tests_data`).
+*   **Query Parameters (Optional):** `status`, `test_id`, `sample_id`, `user_id` (specific user field depends on backend logic, e.g. `requested_by_user_id`).
+*   **Success Response (200 OK):** Array of `sample_tests` objects with joined details (sample unique ID, test name, user names, etc.).
+*   **Error Responses:** `401`, `403`, `500`.
+
+### `GET /api/sample-tests/:id`
+Retrieves details for a specific `sample_tests` entry by its own ID.
+
+*   **Authentication:** Required.
+*   **Permissions Required:** `view_tests`.
+*   **Success Response (200 OK):** Single `sample_tests` object with comprehensive joined details.
+    ```json
+    {
+      "id": 201, // sample_tests.id
+      "sample_id": 1,
+      "unique_sample_id": "SAMP-001",
+      "test_id": 101,
+      "test_name": "Blood Glucose",
+      "experiment_id": 1,
+      "experiment_name": "Diabetes Study",
+      "status": "Pending",
+      "results": null,
+      "requested_by_user_id": 5,
+      "requested_by_username": "researcher_x",
+      // ... all other fields from sample_tests table and joined user names for assign, validate, approve actions
+      "notes": null
+    }
+    ```
+*   **Error Responses:** `401`, `403`, `404`, `500`.
+
+### `PUT /api/sample-tests/:id`
+Updates a specific sample test entry (status, results, assignment, notes).
+
+*   **Authentication:** Required.
+*   **Permissions Required:** Varies based on action (e.g., `enter_test_results`, `validate_test_results`, `approve_test_results`, `manage_tests` for general assignment/notes). The backend performs checks for specific fields/status transitions.
+*   **Request Body:** Fields `status`, `results`, `assigned_to_user_id`, `notes` are optional.
+    ```json
+    {
+      "status": "Completed",
+      "results": "Glucose: 5.5 mmol/L",
+      "assigned_to_user_id": 10,
+      "notes": "Sample slightly hemolyzed."
+    }
+    ```
+*   **Success Response (200 OK):**
+    ```json
+    {
+      "message": "Sample test entry updated successfully.",
+      "id": 201 // ID of the updated sample_tests entry
+    }
+    ```
+*   **Error Responses:**
+    *   `400 Bad Request`: Invalid status transition, user ID not found, or other validation errors.
+    *   `401 Unauthorized`.
+    *   `403 Forbidden`: Insufficient permission for the specific update attempted.
+    *   `404 Not Found`: `sample_tests` entry not found.
+    *   `500 Internal Server Error`.
+
+### `DELETE /api/sample-tests/:id`
+Deletes a specific sample test entry. Use with caution.
+
+*   **Authentication:** Required.
+*   **Permissions Required:** `manage_tests` (or a more specific `delete_sample_test_request`).
+*   **Success Response (200 OK):**
+    ```json
+    {
+      "message": "Sample test entry deleted successfully.",
+      "id": 201 // ID of the deleted sample_tests entry
+    }
+    ```
+*   **Error Responses:**
+    *   `401 Unauthorized`.
+    *   `403 Forbidden`.
+    *   `404 Not Found`.
+    *   `500 Internal Server Error`.
+
+---
 *Note: For 401/403 errors from `authenticateToken` or `authorize` middleware, the response might be a direct status code without a JSON body, or a generic JSON body if the middleware is configured to send one. For routes where multiple permissions are listed (e.g., `authorize(['permA', 'permB'])`), the current backend middleware requires the user to possess ALL listed permissions.*
