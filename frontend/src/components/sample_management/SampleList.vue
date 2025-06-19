@@ -7,6 +7,14 @@
     <table v-else class="table is-striped is-hoverable is-fullwidth">
       <thead>
         <tr>
+          <th v-if="enableSelection" style="width: 3em;">
+            <input
+              type="checkbox"
+              @change="toggleSelectAll"
+              :checked="areAllSelected && samples.length > 0"
+              :disabled="samples.length === 0"
+            />
+          </th>
           <th>Unique ID</th>
           <th>Sample Type</th>
           <th>Source</th>
@@ -17,7 +25,15 @@
         </tr>
       </thead>
       <tbody>
-        <tr v-for="sample in samples" :key="sample.id">
+        <tr v-for="sample in samples" :key="sample.id" :class="{'is-selected': isSelected(sample.id) && enableSelection }">
+          <td v-if="enableSelection">
+            <input
+              type="checkbox"
+              :value="sample.id"
+              v-model="localSelectedSampleIds"
+              @change="emitSelectionChange"
+            />
+          </td>
           <td>{{ sample.unique_sample_id }}</td>
           <td>{{ sample.sample_type_name || sample.sample_type_id }}</td>
           <td>{{ sample.source_name || sample.source_id }}</td>
@@ -46,9 +62,9 @@
 </template>
 
 <script setup>
-import { defineProps, defineEmits } from 'vue';
+import { defineProps, defineEmits, ref, watch, computed } from 'vue'; // Added ref, watch, computed
 
-defineProps({
+const props = defineProps({
   samples: {
     type: Array,
     default: () => []
@@ -57,13 +73,64 @@ defineProps({
     type: Boolean,
     default: false
   },
-  // pagination: { // For future pagination controls
-  //   type: Object,
-  //   default: () => ({ limit: 10, offset: 0, total_count: 0 })
-  // }
+  enableSelection: { // New prop
+    type: Boolean,
+    default: false
+  },
+  selectedSamples: { // New prop to allow parent to clear selections
+    type: Array,
+    default: () => []
+  }
+  // pagination: { ... }
 });
 
-defineEmits(['view-sample-details']);
+const emit = defineEmits(['view-sample-details', 'selected-samples-changed']); // Added new emit
+
+const localSelectedSampleIds = ref([]);
+
+// Watch for external changes to selectedSamples prop (e.g., parent clearing selection)
+watch(() => props.selectedSamples, (newSelection) => {
+  if (Array.isArray(newSelection)) {
+    localSelectedSampleIds.value = [...newSelection];
+  }
+}, { deep: true });
+
+// Watch for changes in the samples list itself (e.g., after filtering or data refresh)
+// and ensure selected IDs that are no longer in the list are removed.
+watch(() => props.samples, (newSamples) => {
+  if (!props.enableSelection) return;
+  const validSampleIds = new Set(newSamples.map(s => s.id));
+  localSelectedSampleIds.value = localSelectedSampleIds.value.filter(id => validSampleIds.has(id));
+  emitSelectionChange(); // Emit change if selection was pruned
+}, { deep: true });
+
+
+const emitSelectionChange = () => {
+  if (props.enableSelection) {
+    emit('selected-samples-changed', [...localSelectedSampleIds.value]);
+  }
+};
+
+const isSelected = (sampleId) => {
+  return localSelectedSampleIds.value.includes(sampleId);
+};
+
+const areAllSelected = computed(() => {
+  if (!props.samples || props.samples.length === 0 || !props.enableSelection) {
+    return false;
+  }
+  return props.samples.every(sample => localSelectedSampleIds.value.includes(sample.id));
+});
+
+const toggleSelectAll = (event) => {
+  if (!props.enableSelection) return;
+  if (event.target.checked) {
+    localSelectedSampleIds.value = props.samples.map(sample => sample.id);
+  } else {
+    localSelectedSampleIds.value = [];
+  }
+  emitSelectionChange();
+};
 
 const formatDate = (dateString) => {
   if (!dateString) return 'N/A';
