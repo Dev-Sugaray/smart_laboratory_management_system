@@ -410,6 +410,18 @@ app.use('/api', testsRouter);
 const sampleTestsRouter = require('./routes/sample_tests');
 app.use('/api', sampleTestsRouter);
 
+// Import and use Reagent Management routes
+const reagentsRouter = require('./routes/reagents');
+app.use('/api/reagents', reagentsRouter);
+
+// Import and use Supplier Management routes
+const suppliersRouter = require('./routes/suppliers');
+app.use('/api/suppliers', suppliersRouter);
+
+// Import and use Reagent Order Management routes
+const reagentOrdersRouter = require('./routes/reagent_orders');
+app.use('/api/reagent_orders', reagentOrdersRouter);
+
 // AFTER all API routes, add the catch-all for SPA (production only)
 if (process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'test_production_build') {
   const frontendDistPath = path.resolve(__dirname, '..', 'frontend', 'dist');

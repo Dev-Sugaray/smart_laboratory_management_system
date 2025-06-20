@@ -58,4 +58,58 @@ export default {
   delete(url, options) {
     return request(url, { ...options, method: 'DELETE' });
   },
+
+  // --- Reagents ---
+  fetchReagents() {
+    return this.get('/reagents');
+  },
+  fetchReagentById(id) {
+    return this.get(`/reagents/${id}`);
+  },
+  createReagent(reagentData) {
+    return this.post('/reagents', reagentData);
+  },
+  updateReagent(id, reagentData) {
+    return this.put(`/reagents/${id}`, reagentData);
+  },
+  deleteReagent(id) {
+    return this.delete(`/reagents/${id}`);
+  },
+  updateReagentStock(id, stockChangeData) {
+    return this.post(`/reagents/${id}/update_stock`, stockChangeData);
+  },
+  fetchLowStockAlerts() {
+    return this.get('/reagents/alerts/low_stock');
+  },
+
+  // --- Suppliers ---
+  fetchSuppliers() {
+    return this.get('/suppliers');
+  },
+  fetchSupplierById(id) {
+    return this.get(`/suppliers/${id}`);
+  },
+  createSupplier(supplierData) {
+    return this.post('/suppliers', supplierData);
+  },
+  updateSupplier(id, supplierData) {
+    return this.put(`/suppliers/${id}`, supplierData);
+  },
+  deleteSupplier(id) {
+    return this.delete(`/suppliers/${id}`);
+  },
+
+  // --- Reagent Orders ---
+  fetchOrders() {
+    return this.get('/reagent_orders');
+  },
+  fetchOrderById(id) {
+    return this.get(`/reagent_orders/${id}`);
+  },
+  createOrder(orderData) {
+    return this.post('/reagent_orders', orderData);
+  },
+  updateOrder(id, orderData) {
+    return this.put(`/reagent_orders/${id}`, orderData);
+  },
 };
