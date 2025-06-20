@@ -398,6 +398,18 @@ const instrumentRoutes = require('./routes/instruments'); // Import instrument r
 app.use('/api/instruments', instrumentRoutes); // Mount instrument routes
 app.use('/api', sampleApiRoutes);
 
+// Import and use Experiment Management routes
+const experimentsRouter = require('./routes/experiments');
+app.use('/api', experimentsRouter);
+
+// Import and use Test Management routes
+const testsRouter = require('./routes/tests');
+app.use('/api', testsRouter);
+
+// Import and use Sample Test Management routes
+const sampleTestsRouter = require('./routes/sample_tests');
+app.use('/api', sampleTestsRouter);
+
 // AFTER all API routes, add the catch-all for SPA (production only)
 if (process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'test_production_build') {
   const frontendDistPath = path.resolve(__dirname, '..', 'frontend', 'dist');

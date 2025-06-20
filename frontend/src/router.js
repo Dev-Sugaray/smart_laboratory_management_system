@@ -14,6 +14,20 @@ import StorageListView from './views/StorageListView.vue';
 import SampleTypeListView from './views/SampleTypeListView.vue';
 import SourceListView from './views/SourceListView.vue';
 
+// Experiment Management Views
+import ExperimentListView from './views/ExperimentListView.vue';
+import ExperimentDetailView from './views/ExperimentDetailView.vue';
+import ExperimentCreateView from './views/ExperimentCreateView.vue';
+
+// Test Definition Views
+import TestListView from './views/TestListView.vue';
+import TestDetailView from './views/TestDetailView.vue';
+import TestCreateView from './views/TestCreateView.vue';
+
+// Sample Test (Run) Views
+import TestQueueView from './views/TestQueueView.vue';
+import SampleTestDetailView from './views/SampleTestDetailView.vue';
+
 import { useAuthStore } from './stores/auth';
 
 const routes = [
@@ -62,6 +76,7 @@ const routes = [
     component: SourceListView,
     meta: { requiresAuth: true }
   },
+ 
   {
     path: '/instrument-management',
     name: 'InstrumentManagement',
@@ -83,6 +98,64 @@ const routes = [
       requiresAuth: true,
       // requiresPermission: ['view_instruments'] // Or specific view_instrument_details
     }
+
+
+  // Experiment Routes
+  {
+    path: '/experiments',
+    name: 'ExperimentList',
+    component: ExperimentListView,
+    meta: { requiresAuth: true } // Add appropriate permissions later if needed
+  },
+  {
+    path: '/experiments/new',
+    name: 'ExperimentCreate',
+    component: ExperimentCreateView,
+    meta: { requiresAuth: true } // Add appropriate permissions later
+  },
+  {
+    path: '/experiments/:id',
+    name: 'ExperimentDetail',
+    component: ExperimentDetailView,
+    props: true,
+    meta: { requiresAuth: true } // Add appropriate permissions later
+  },
+
+  // Test Definition Routes
+  {
+    path: '/tests',
+    name: 'TestList',
+    component: TestListView,
+    meta: { requiresAuth: true } // Add appropriate permissions later
+  },
+  {
+    path: '/tests/new',
+    name: 'TestCreate',
+    component: TestCreateView,
+    meta: { requiresAuth: true } // Add appropriate permissions later
+  },
+  {
+    path: '/tests/:id',
+    name: 'TestDetail',
+    component: TestDetailView,
+    props: true,
+    meta: { requiresAuth: true } // Add appropriate permissions later
+  },
+
+  // Sample Test (Run) Routes
+  {
+    path: '/sample-tests', // Or '/testing-queue', '/lab-queue'
+    name: 'TestQueue',
+    component: TestQueueView,
+    meta: { requiresAuth: true } // Permissions: e.g., view_tests, enter_test_results
+  },
+  {
+    path: '/sample-tests/:id',
+    name: 'SampleTestDetail',
+    component: SampleTestDetailView,
+    props: true,
+    meta: { requiresAuth: true } // Permissions: e.g., view_tests, enter_test_results
+
   },
 ];
 
