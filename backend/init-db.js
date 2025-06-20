@@ -106,7 +106,7 @@ function createPermissionsTable() {
           'manage_storage_locations', 'view_sample_lifecycle', 'manage_chain_of_custody',
           'manage_sample_types', 'manage_sources', 'view_all_samples', 
           // Instrument Management Permissions
-          'manage_instruments', 'view_instruments', 'log_instrument_usage', 'view_instrument_usage'
+          'manage_instruments', 'view_instruments', 'log_instrument_usage', 'view_instrument_usage',
           // New Experiment and Test Management Permissions
           'manage_experiments', 'view_experiments', 'manage_tests', 'view_tests',
           'request_sample_tests', 'enter_test_results', 'validate_test_results', 'approve_test_results'
@@ -198,74 +198,74 @@ function createInstrumentUsageLogsTable() {
 // START: Experiment and Test Management Tables
 
 function createExperimentsTable() {
-  db.run(\`CREATE TABLE IF NOT EXISTS experiments (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT UNIQUE NOT NULL,
-    description TEXT,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
-  )\`, (err) => {
-    if (err) return closeDbAndExit(false, \`Error creating experiments table: \${err.message}\`);
+  db.run('CREATE TABLE IF NOT EXISTS experiments (' +
+    'id INTEGER PRIMARY KEY AUTOINCREMENT,' +
+    'name TEXT UNIQUE NOT NULL,' +
+    'description TEXT,' +
+    'created_at TEXT DEFAULT CURRENT_TIMESTAMP,' +
+    'updated_at TEXT DEFAULT CURRENT_TIMESTAMP' +
+  ')', (err) => {
+    if (err) return closeDbAndExit(false, `Error creating experiments table: ${err.message}`);
     console.log('Experiments table ensured.');
     createTestsTable(); // Next table in this sequence
   });
 }
 
 function createTestsTable() {
-  db.run(\`CREATE TABLE IF NOT EXISTS tests (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT UNIQUE NOT NULL,
-    description TEXT,
-    protocol TEXT,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
-  )\`, (err) => {
-    if (err) return closeDbAndExit(false, \`Error creating tests table: \${err.message}\`);
+  db.run('CREATE TABLE IF NOT EXISTS tests (' +
+    'id INTEGER PRIMARY KEY AUTOINCREMENT,' +
+    'name TEXT UNIQUE NOT NULL,' +
+    'description TEXT,' +
+    'protocol TEXT,' +
+    'created_at TEXT DEFAULT CURRENT_TIMESTAMP,' +
+    'updated_at TEXT DEFAULT CURRENT_TIMESTAMP' +
+  ')', (err) => {
+    if (err) return closeDbAndExit(false, `Error creating tests table: ${err.message}`);
     console.log('Tests table ensured.');
     createExperimentTestsTable(); // Next table in this sequence
   });
 }
 
 function createExperimentTestsTable() {
-  db.run(\`CREATE TABLE IF NOT EXISTS experiment_tests (
-    experiment_id INTEGER NOT NULL,
-    test_id INTEGER NOT NULL,
-    PRIMARY KEY (experiment_id, test_id),
-    FOREIGN KEY (experiment_id) REFERENCES experiments(id) ON DELETE CASCADE,
-    FOREIGN KEY (test_id) REFERENCES tests(id) ON DELETE CASCADE
-  )\`, (err) => {
-    if (err) return closeDbAndExit(false, \`Error creating experiment_tests table: \${err.message}\`);
+  db.run('CREATE TABLE IF NOT EXISTS experiment_tests (' +
+    'experiment_id INTEGER NOT NULL,' +
+    'test_id INTEGER NOT NULL,' +
+    'PRIMARY KEY (experiment_id, test_id),' +
+    'FOREIGN KEY (experiment_id) REFERENCES experiments(id) ON DELETE CASCADE,' +
+    'FOREIGN KEY (test_id) REFERENCES tests(id) ON DELETE CASCADE' +
+  ')', (err) => {
+    if (err) return closeDbAndExit(false, `Error creating experiment_tests table: ${err.message}`);
     console.log('Experiment_tests table ensured.');
     createSampleTestsTable(); // Next table in this sequence
   });
 }
 
 function createSampleTestsTable() {
-  db.run(\`CREATE TABLE IF NOT EXISTS sample_tests (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    sample_id INTEGER NOT NULL,
-    test_id INTEGER NOT NULL,
-    experiment_id INTEGER, -- Optional
-    status TEXT NOT NULL DEFAULT 'Pending' CHECK(status IN ('Pending', 'In Progress', 'Completed', 'Validated', 'Approved', 'Rejected')),
-    results TEXT,
-    requested_by_user_id INTEGER NOT NULL,
-    assigned_to_user_id INTEGER,
-    requested_at TEXT DEFAULT CURRENT_TIMESTAMP,
-    result_entry_date TEXT,
-    validated_at TEXT,
-    validated_by_user_id INTEGER,
-    approved_at TEXT,
-    approved_by_user_id INTEGER,
-    notes TEXT,
-    FOREIGN KEY (sample_id) REFERENCES samples(id) ON DELETE CASCADE,
-    FOREIGN KEY (test_id) REFERENCES tests(id) ON DELETE CASCADE,
-    FOREIGN KEY (experiment_id) REFERENCES experiments(id) ON DELETE SET NULL,
-    FOREIGN KEY (requested_by_user_id) REFERENCES users(id) ON DELETE RESTRICT,
-    FOREIGN KEY (assigned_to_user_id) REFERENCES users(id) ON DELETE SET NULL,
-    FOREIGN KEY (validated_by_user_id) REFERENCES users(id) ON DELETE SET NULL,
-    FOREIGN KEY (approved_by_user_id) REFERENCES users(id) ON DELETE SET NULL
-  )\`, (err) => {
-    if (err) return closeDbAndExit(false, \`Error creating sample_tests table: \${err.message}\`);
+  db.run('CREATE TABLE IF NOT EXISTS sample_tests (' +
+    'id INTEGER PRIMARY KEY AUTOINCREMENT,' +
+    'sample_id INTEGER NOT NULL,' +
+    'test_id INTEGER NOT NULL,' +
+    'experiment_id INTEGER, ' + // -- Optional (Removed comment for simplicity in concatenated string)
+    "status TEXT NOT NULL DEFAULT 'Pending' CHECK(status IN ('Pending', 'In Progress', 'Completed', 'Validated', 'Approved', 'Rejected'))," +
+    'results TEXT,' +
+    'requested_by_user_id INTEGER NOT NULL,' +
+    'assigned_to_user_id INTEGER,' +
+    'requested_at TEXT DEFAULT CURRENT_TIMESTAMP,' +
+    'result_entry_date TEXT,' +
+    'validated_at TEXT,' +
+    'validated_by_user_id INTEGER,' +
+    'approved_at TEXT,' +
+    'approved_by_user_id INTEGER,' +
+    'notes TEXT,' +
+    'FOREIGN KEY (sample_id) REFERENCES samples(id) ON DELETE CASCADE,' +
+    'FOREIGN KEY (test_id) REFERENCES tests(id) ON DELETE CASCADE,' +
+    'FOREIGN KEY (experiment_id) REFERENCES experiments(id) ON DELETE SET NULL,' +
+    'FOREIGN KEY (requested_by_user_id) REFERENCES users(id) ON DELETE RESTRICT,' +
+    'FOREIGN KEY (assigned_to_user_id) REFERENCES users(id) ON DELETE SET NULL,' +
+    'FOREIGN KEY (validated_by_user_id) REFERENCES users(id) ON DELETE SET NULL,' +
+    'FOREIGN KEY (approved_by_user_id) REFERENCES users(id) ON DELETE SET NULL' +
+  ')', (err) => {
+    if (err) return closeDbAndExit(false, `Error creating sample_tests table: ${err.message}`);
     console.log('Sample_tests table ensured.');
     // After these tables are created, proceed to create sample management specific tables.
     createSampleTypesTable();
@@ -356,12 +356,120 @@ function createChainOfCustodyTable() {
   )`, (err) => {
     if (err) return closeDbAndExit(false, `Error creating chain_of_custody table: ${err.message}`);
     console.log('Chain_of_custody table ensured.');
-    // This is the last table in the new sequence
-    closeDbAndExit(true, 'Database setup script finished successfully with Sample Management tables.');
+    // This was the last table in the new sequence, now calling reagents
+    createReagentsTable();
   });
 }
 
 // END: Sample Management Tables
+
+
+// START: Inventory Management Tables
+
+function createReagentsTable() {
+  db.run(`CREATE TABLE IF NOT EXISTS reagents (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    lot_number TEXT UNIQUE NOT NULL,
+    expiry_date TEXT NOT NULL,
+    manufacturer TEXT,
+    sds_link TEXT,
+    current_stock INTEGER DEFAULT 0,
+    min_stock_level INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+  )`, (err) => {
+    if (err) return closeDbAndExit(false, `Error creating reagents table: ${err.message}`);
+    console.log('Reagents table ensured.');
+    db.run(`
+      CREATE TRIGGER IF NOT EXISTS update_reagents_updated_at
+      AFTER UPDATE ON reagents
+      FOR EACH ROW
+      BEGIN
+        UPDATE reagents SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.id;
+      END;
+    `, (triggerErr) => {
+      if (triggerErr) return closeDbAndExit(false, `Error creating update_reagents_updated_at trigger: ${triggerErr.message}`);
+      console.log('Update_reagents_updated_at trigger ensured.');
+      createSuppliersTable(); // Next table
+    });
+  });
+}
+
+function createSuppliersTable() {
+  db.run(`CREATE TABLE IF NOT EXISTS suppliers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    contact_info TEXT,
+    address TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+  )`, (err) => {
+    if (err) return closeDbAndExit(false, `Error creating suppliers table: ${err.message}`);
+    console.log('Suppliers table ensured.');
+    db.run(`
+      CREATE TRIGGER IF NOT EXISTS update_suppliers_updated_at
+      AFTER UPDATE ON suppliers
+      FOR EACH ROW
+      BEGIN
+        UPDATE suppliers SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.id;
+      END;
+    `, (triggerErr) => {
+      if (triggerErr) return closeDbAndExit(false, `Error creating update_suppliers_updated_at trigger: ${triggerErr.message}`);
+      console.log('Update_suppliers_updated_at trigger ensured.');
+      createReagentOrdersTable(); // Next table
+    });
+  });
+}
+
+function createReagentOrdersTable() {
+  db.run(`CREATE TABLE IF NOT EXISTS reagent_orders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    reagent_id INTEGER NOT NULL,
+    supplier_id INTEGER,
+    order_date TEXT NOT NULL,
+    expected_delivery_date TEXT,
+    quantity_ordered INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'Pending',
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (reagent_id) REFERENCES reagents(id),
+    FOREIGN KEY (supplier_id) REFERENCES suppliers(id)
+  )`, (err) => {
+    if (err) return closeDbAndExit(false, `Error creating reagent_orders table: ${err.message}`);
+    console.log('Reagent_orders table ensured.');
+    db.run(`
+      CREATE TRIGGER IF NOT EXISTS update_reagent_orders_updated_at
+      AFTER UPDATE ON reagent_orders
+      FOR EACH ROW
+      BEGIN
+        UPDATE reagent_orders SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.id;
+      END;
+    `, (triggerErr) => {
+      if (triggerErr) return closeDbAndExit(false, `Error creating update_reagent_orders_updated_at trigger: ${triggerErr.message}`);
+      console.log('Update_reagent_orders_updated_at trigger ensured.');
+      createReagentSupplierJunctionTable(); // Next table
+    });
+  });
+}
+
+function createReagentSupplierJunctionTable() {
+  db.run(`CREATE TABLE IF NOT EXISTS reagent_supplier_junction (
+    reagent_id INTEGER NOT NULL,
+    supplier_id INTEGER NOT NULL,
+    PRIMARY KEY (reagent_id, supplier_id),
+    FOREIGN KEY (reagent_id) REFERENCES reagents(id),
+    FOREIGN KEY (supplier_id) REFERENCES suppliers(id)
+  )`, (err) => {
+    if (err) return closeDbAndExit(false, `Error creating reagent_supplier_junction table: ${err.message}`);
+    console.log('Reagent_supplier_junction table ensured.');
+    // No updated_at trigger needed for a pure junction table without its own timestamps.
+    // This is the last table in the inventory management sequence.
+    closeDbAndExit(true, 'Database setup script finished successfully with Inventory Management tables.');
+  });
+}
+
+// END: Inventory Management Tables
 
 function createRolePermissionsTable() {
   db.run(`CREATE TABLE IF NOT EXISTS role_permissions (
@@ -385,7 +493,7 @@ function createRolePermissionsTable() {
             'register_sample', 'view_sample_details', 'update_sample_status',
             'generate_barcode', 'view_sample_lifecycle', 'manage_chain_of_custody',
             // Instrument Permissions for Researcher
-            'view_instruments', 'log_instrument_usage', 'view_instrument_usage'
+            'view_instruments', 'log_instrument_usage', 'view_instrument_usage',
 
             // New Experiment and Test Permissions for Researcher
             'view_experiments', 'view_tests', 'request_sample_tests', 'enter_test_results'
@@ -398,7 +506,7 @@ function createRolePermissionsTable() {
             'manage_storage_locations', 'manage_sample_types', 'manage_sources', 'view_all_samples',
  
             // Instrument Permissions for Lab Manager
-            'manage_instruments', 'view_instruments', 'log_instrument_usage', 'view_instrument_usage'
+            'manage_instruments', 'view_instruments', 'log_instrument_usage', 'view_instrument_usage',
 
             // New Experiment and Test Permissions for Lab Manager
             'manage_experiments', 'view_experiments', 'manage_tests', 'view_tests',
