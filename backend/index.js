@@ -393,6 +393,9 @@ app.get('/api/test', (req, res) => {
 
 // Import and use Sample Management routes
 const sampleApiRoutes = require('./routes/samples');
+const instrumentRoutes = require('./routes/instruments'); // Import instrument routes
+
+app.use('/api/instruments', instrumentRoutes); // Mount instrument routes
 app.use('/api', sampleApiRoutes);
 
 // Import and use Experiment Management routes

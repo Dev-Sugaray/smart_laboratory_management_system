@@ -104,7 +104,9 @@ function createPermissionsTable() {
           // New Sample Management Permissions
           'register_sample', 'view_sample_details', 'update_sample_status', 'generate_barcode',
           'manage_storage_locations', 'view_sample_lifecycle', 'manage_chain_of_custody',
-          'manage_sample_types', 'manage_sources', 'view_all_samples',
+          'manage_sample_types', 'manage_sources', 'view_all_samples', 
+          // Instrument Management Permissions
+          'manage_instruments', 'view_instruments', 'log_instrument_usage', 'view_instrument_usage'
           // New Experiment and Test Management Permissions
           'manage_experiments', 'view_experiments', 'manage_tests', 'view_tests',
           'request_sample_tests', 'enter_test_results', 'validate_test_results', 'approve_test_results'
@@ -154,6 +156,44 @@ function createUsersTable() {
     createRolePermissionsTable();
   });
 }
+
+function createInstrumentsTable() {
+  db.run(`CREATE TABLE IF NOT EXISTS instruments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    make TEXT,
+    model TEXT,
+    serial_number TEXT UNIQUE NOT NULL,
+    calibration_date TEXT,
+    maintenance_schedule TEXT,
+    status TEXT CHECK(status IN ('Available', 'In Use', 'Under Maintenance', 'Retired')) DEFAULT 'Available',
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+  )`, (err) => {
+    if (err) return closeDbAndExit(false, `Error creating instruments table: ${err.message}`);
+    console.log('Instruments table ensured.');
+    createInstrumentUsageLogsTable(); // Next table
+  });
+}
+
+function createInstrumentUsageLogsTable() {
+  db.run(`CREATE TABLE IF NOT EXISTS instrument_usage_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    instrument_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    start_time TEXT NOT NULL,
+    end_time TEXT,
+    notes TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (instrument_id) REFERENCES instruments(id),
+    FOREIGN KEY (user_id) REFERENCES users(id)
+  )`, (err) => {
+    if (err) return closeDbAndExit(false, `Error creating instrument_usage_logs table: ${err.message}`);
+    console.log('Instrument_usage_logs table ensured.');
+    createSampleTypesTable(); // Next table
+  });
+}
+
 
 // START: Experiment and Test Management Tables
 
@@ -234,6 +274,7 @@ function createSampleTestsTable() {
 
 // END: Experiment and Test Management Tables
 
+ 
 // START: Sample Management Tables
 
 function createSampleTypesTable() {
@@ -343,17 +384,26 @@ function createRolePermissionsTable() {
             'view_reports', 'manage_inventory', // Existing
             'register_sample', 'view_sample_details', 'update_sample_status',
             'generate_barcode', 'view_sample_lifecycle', 'manage_chain_of_custody',
+            // Instrument Permissions for Researcher
+            'view_instruments', 'log_instrument_usage', 'view_instrument_usage'
+
             // New Experiment and Test Permissions for Researcher
             'view_experiments', 'view_tests', 'request_sample_tests', 'enter_test_results'
+
           ],
           'lab_manager': [
             'view_reports', 'manage_inventory', 'create_user', // Existing
             'register_sample', 'view_sample_details', 'update_sample_status',
             'generate_barcode', 'view_sample_lifecycle', 'manage_chain_of_custody', // Researcher's sample perms
             'manage_storage_locations', 'manage_sample_types', 'manage_sources', 'view_all_samples',
+ 
+            // Instrument Permissions for Lab Manager
+            'manage_instruments', 'view_instruments', 'log_instrument_usage', 'view_instrument_usage'
+
             // New Experiment and Test Permissions for Lab Manager
             'manage_experiments', 'view_experiments', 'manage_tests', 'view_tests',
             'request_sample_tests', 'enter_test_results', 'validate_test_results'
+
           ],
           'administrator': [] // Admin gets all, will be handled separately
         };
@@ -394,7 +444,7 @@ function createRolePermissionsTable() {
 
             if (assignments.length === 0) {
               console.log('No role-permission assignments to make.');
-              createSampleTypesTable(); // Proceed to next step
+              createInstrumentsTable(); // Proceed to next step
               return;
             }
 
@@ -421,7 +471,11 @@ function createRolePermissionsTable() {
                   stmt.finalize(finalizeErr => {
                     if (finalizeErr) return closeDbAndExit(false, `Error finalizing role_permissions insertion: ${finalizeErr.message}`);
                     console.log(`${assignmentsDone} role-permission assignments processed.`);
+ 
+                    createInstrumentsTable(); // Next step
+
                     createExperimentsTable(); // Next step is to create experiment tables
+ 
                   });
                 }
               });
@@ -430,7 +484,11 @@ function createRolePermissionsTable() {
         });
       } else {
         console.log('Role_permissions table already populated or seeding logic skipped.');
+ 
+        createInstrumentsTable(); // Proceed to next step
+
         createExperimentsTable(); // Proceed to create experiment tables
+ 
       }
     });
   });
