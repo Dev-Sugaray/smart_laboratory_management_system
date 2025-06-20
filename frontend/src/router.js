@@ -62,6 +62,28 @@ const routes = [
     component: SourceListView,
     meta: { requiresAuth: true }
   },
+  {
+    path: '/instrument-management',
+    name: 'InstrumentManagement',
+    // Dynamically import the component for lazy loading
+    component: () => import('./views/InstrumentManagementView.vue'),
+    meta: {
+      requiresAuth: true,
+      // Future enhancement: Add permission check here if possible, e.g.
+      // requiresPermission: ['view_instruments'] or similar
+      // This would require enhancing the beforeEach guard.
+    }
+  },
+  {
+    path: '/instrument-management/:id',
+    name: 'InstrumentDetailView',
+    component: () => import('./views/InstrumentDetailView.vue'),
+    props: true, // Passes route params as props to the component
+    meta: {
+      requiresAuth: true,
+      // requiresPermission: ['view_instruments'] // Or specific view_instrument_details
+    }
+  },
 ];
 
 const router = createRouter({

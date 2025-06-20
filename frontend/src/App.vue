@@ -7,6 +7,7 @@
       <router-link v-if="!authStore.isAuthenticated" to="/register" class="mr-4 hover:text-gray-300">Register</router-link>
       <router-link v-if="authStore.isAuthenticated" to="/profile" class="mr-4 hover:text-gray-300">Profile</router-link>
       <router-link v-if="authStore.isAuthenticated" to="/samples" class="mr-4 hover:text-gray-300">Sample Management</router-link>
+      <router-link v-if="authStore.isAuthenticated" to="/instrument-management" class="mr-4 hover:text-gray-300">Instrument Management</router-link>
       <router-link v-if="authStore.isAuthenticated && authStore.userRole === 'administrator'" to="/admin/users" class="mr-4 hover:text-gray-300">User Management</router-link>
       <button v-if="authStore.isAuthenticated" @click="handleLogout" class="hover:text-gray-300">Logout</button>
     </nav>
