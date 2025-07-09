@@ -63,7 +63,8 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         throw new Error(`Failed to fetch samples: ${response.status}`);
       }
-      samples = await response.json();
+      const result = await response.json();
+      samples = Array.isArray(result) ? result : result.data || [];
       renderTable();
     } catch (error) {
       console.error('Error fetching samples:', error);
