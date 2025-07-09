@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Experiments - Smart Laboratory Management System</title>
+  <title>Reagents - Smart Laboratory Management System</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="/css/styles.css">
 </head>
@@ -17,11 +17,13 @@
       <div class="collapse navbar-collapse" id="navbarNav">
         <ul class="navbar-nav ms-auto">
           <li class="nav-item"><a class="nav-link" href="/views/dashboard.html">Dashboard</a></li>
-          <li class="nav-item"><a class="nav-link active" aria-current="page" href="/views/experiments.html">Experiments</a></li>
+          <li class="nav-item"><a class="nav-link" href="/views/experiments.html">Experiments</a></li>
           <li class="nav-item"><a class="nav-link" href="/views/instruments.html" id="nav-instruments">Instruments</a></li>
-          <li class="nav-item"><a class="nav-link" href="/views/reagents.html" id="nav-reagents">Reagents</a></li>
+          <li class="nav-item"><a class="nav-link active" aria-current="page" href="/views/reagents.html">Reagents</a></li>
           <li class="nav-item"><a class="nav-link" href="/views/reagent_orders.html" id="nav-reagent-orders">Reagent Orders</a></li>
-          <li class="nav-item"><a class="nav-link" href="/views/samples.html" id="nav-samples">Samples</a></li>
+          <li class="nav-item"><a class="nav-link" href="#" id="nav-samples">Samples</a></li>
+          <li class="nav-item"><a class="nav-link" href="#" id="nav-sample-tests">Sample Tests</a></li>
+          <li class="nav-item"><a class="nav-link" href="#" id="nav-suppliers">Suppliers</a></li>
           <li class="nav-item"><a class="nav-link" href="/views/tests.html" id="nav-tests">Tests</a></li>
           <li class="nav-item"><a class="nav-link" href="#" id="logout-link">Logout</a></li>
         </ul>
@@ -31,16 +33,19 @@
   <div class="container mt-5">
     <div class="row">
       <div class="col-12">
-        <h2 class="mb-4">Experiments Dashboard</h2>
-        <button class="btn btn-success mb-3" id="add-experiment-btn">Add Experiment</button>
+        <h2 class="mb-4">Reagents Dashboard</h2>
+        <button class="btn btn-success mb-3" id="add-reagent-btn">Add Reagent</button>
         <table class="table table-striped table-hover">
           <thead class="table-primary">
             <tr>
               <th scope="col">#</th>
-              <th scope="col">Experiment Name</th>
-              <th scope="col">Status</th>
-              <th scope="col">Start Date</th>
-              <th scope="col">End Date</th>
+              <th scope="col">Name</th>
+              <th scope="col">Lot Number</th>
+              <th scope="col">Expiry Date</th>
+              <th scope="col">Manufacturer</th>
+              <th scope="col">Current Stock</th>
+              <th scope="col">Min Stock</th>
+              <th scope="col">SDS</th>
               <th scope="col">Actions</th>
             </tr>
           </thead>
@@ -52,39 +57,43 @@
     </div>
   </div>
 
-  <!-- Modal for Add/Edit Experiment -->
-  <div class="modal fade" id="experimentModal" tabindex="-1" aria-labelledby="experimentModalLabel" aria-hidden="true">
+  <!-- Modal for Add/Edit Reagent -->
+  <div class="modal fade" id="reagentModal" tabindex="-1" aria-labelledby="reagentModalLabel" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">
-        <form id="experiment-form">
+        <form id="reagent-form">
           <div class="modal-header">
-            <h5 class="modal-title" id="experimentModalLabel">Experiment</h5>
+            <h5 class="modal-title" id="reagentModalLabel">Reagent</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
             <div class="mb-3">
-              <label for="name" class="form-label">Experiment Name</label>
+              <label for="name" class="form-label">Reagent Name</label>
               <input type="text" class="form-control" id="name" name="name" required>
             </div>
             <div class="mb-3">
-              <label for="description" class="form-label">Description</label>
-              <textarea class="form-control" id="description" name="description" rows="2"></textarea>
+              <label for="lot_number" class="form-label">Lot Number</label>
+              <input type="text" class="form-control" id="lot_number" name="lot_number" required>
             </div>
             <div class="mb-3">
-              <label for="status" class="form-label">Status</label>
-              <select class="form-select" id="status" name="status" required>
-                <option value="Ongoing">Ongoing</option>
-                <option value="Completed">Completed</option>
-                <option value="Delayed">Delayed</option>
-              </select>
+              <label for="expiry_date" class="form-label">Expiry Date</label>
+              <input type="date" class="form-control" id="expiry_date" name="expiry_date" required>
             </div>
             <div class="mb-3">
-              <label for="start_date" class="form-label">Start Date</label>
-              <input type="date" class="form-control" id="start_date" name="start_date" required>
+              <label for="manufacturer" class="form-label">Manufacturer</label>
+              <input type="text" class="form-control" id="manufacturer" name="manufacturer">
             </div>
             <div class="mb-3">
-              <label for="end_date" class="form-label">End Date</label>
-              <input type="date" class="form-control" id="end_date" name="end_date">
+              <label for="sds_link" class="form-label">SDS Link</label>
+              <input type="url" class="form-control" id="sds_link" name="sds_link">
+            </div>
+            <div class="mb-3">
+              <label for="current_stock" class="form-label">Current Stock</label>
+              <input type="number" class="form-control" id="current_stock" name="current_stock" min="0" required>
+            </div>
+            <div class="mb-3">
+              <label for="min_stock_level" class="form-label">Minimum Stock Level</label>
+              <input type="number" class="form-control" id="min_stock_level" name="min_stock_level" min="0" required>
             </div>
           </div>
           <div class="modal-footer">
@@ -96,7 +105,7 @@
     </div>
   </div>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="/js/experiments.js"></script>
+  <script src="/js/reagents.js"></script>
   <script>
     document.getElementById('logout-link').addEventListener('click', function(e) {
       e.preventDefault();
