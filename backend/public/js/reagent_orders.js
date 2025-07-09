@@ -119,7 +119,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   async function fetchReagentOrders() {
     try {
-      const response = await fetch('/api/reagent-orders', {
+      const response = await fetch('/api/reagent_orders', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!response.ok) {
@@ -160,7 +160,7 @@ document.addEventListener('DOMContentLoaded', function () {
   window.deleteReagentOrder = async function(id) {
     if (confirm('Are you sure you want to delete this reagent order? This action cannot be undone.')) {
       try {
-        const response = await fetch(`/api/reagent-orders/${id}`, {
+        const response = await fetch(`/api/reagent_orders/${id}`, {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -203,7 +203,7 @@ document.addEventListener('DOMContentLoaded', function () {
         return;
     }
 
-    const url = editingOrderId ? `/api/reagent-orders/${editingOrderId}` : '/api/reagent-orders';
+    const url = editingOrderId ? `/api/reagent_orders/${editingOrderId}` : '/api/reagent_orders';
     const method = editingOrderId ? 'PUT' : 'POST';
 
     try {
