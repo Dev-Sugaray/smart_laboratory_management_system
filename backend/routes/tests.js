@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { db, authenticateToken, authorize } = require('../auth');
+const { authenticateToken, authorize } = require('../auth');
+const db = require('../database'); // Import shared db instance
 
 // POST /api/tests - Create a new test
 router.post('/tests', authenticateToken, authorize(['manage_tests']), (req, res) => {
