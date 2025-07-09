@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { db, authenticateToken, authorize } = require('../auth');
+const { authenticateToken, authorize } = require('../auth');
+const db = require('../database'); // Import shared db instance
 
 // POST /api/instruments - Create Instrument
 router.post('/', authenticateToken, authorize(['manage_instruments']), (req, res) => {
@@ -149,7 +150,7 @@ router.post('/:instrumentId/usage-logs', authenticateToken, authorize(['log_inst
   const { instrumentId } = req.params;
   const { start_time, end_time, notes } = req.body;
   // user_id should be taken from the authenticated user token
-  const userId = req.user.id;
+  const userId = req.user.userId; // Corrected to use userId from JWT payload
 
   if (!start_time) {
     return res.status(400).json({ message: 'Start time is required.' });

@@ -1,10 +1,7 @@
 const jwt = require('jsonwebtoken');
-const path = require('path');
-const sqlite3 = require('sqlite3').verbose();
+const db = require('./database'); // Import the shared db instance
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
-const dbPath = path.resolve(__dirname, 'database.db');
-const db = new sqlite3.Database(dbPath);
 
 // JWT Authentication Middleware
 const authenticateToken = (req, res, next) => {
@@ -58,4 +55,4 @@ const authorize = (requiredPermissions) => {
   };
 };
 
-module.exports = { authenticateToken, authorize, db };
+module.exports = { authenticateToken, authorize };

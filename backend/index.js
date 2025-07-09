@@ -1,22 +1,18 @@
 const express = require('express');
-const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const db = require('./database'); // Import the shared db instance
+const { authenticateToken, authorize } = require('./auth'); // Import auth functions
 
 const app = express();
 const port = process.env.PORT || 3001; // Backend server port
 const saltRounds = 10; // for bcrypt
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'; // Replace with a strong secret in production
 
-// Create or connect to a database file
-const dbPath = path.resolve(__dirname, 'database.db');
-const db = new sqlite3.Database(dbPath, (err) => {
-  if (err) {
-    console.error('Error opening database', err.message);
-  } else {
-    console.log('Connected to the SQLite database.');
-    db.serialize(() => {
+// Initial DB Setup (using the imported db)
+// The console.log from database.js will indicate connection.
+db.serialize(() => {
       // Create roles table
       db.run(`CREATE TABLE IF NOT EXISTS roles (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -142,76 +138,8 @@ const db = new sqlite3.Database(dbPath, (err) => {
         }
       });
     });
-  }
-});
 
 app.use(express.json());
-
-// JWT Authentication Middleware
-const authenticateToken = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
-
-  if (token == null) return res.sendStatus(401); // if there isn't any token
-
-  jwt.verify(token, JWT_SECRET, (err, userPayload) => {
-    if (err) {
-      console.error('JWT verification error:', err.message);
-      return res.sendStatus(403); // if token is no longer valid
-    }
-    req.user = userPayload; // Add user payload to request object
-    next(); // pass the execution to the downstream middlewares
-  });
-};
-
-// Authorization Middleware (Higher-Order Function)
-const authorize = (requiredPermissions) => {
-  return (req, res, next) => {
-    if (!req.user || !req.user.userId || !req.user.role) { // role was added to payload during login
-      console.error('Authorization error: User or role not found on request object.');
-      return res.sendStatus(403); // Forbidden
-    }
-
-    // In a real app, you'd query role_id from users table if not in JWT, then permissions
-    // For this example, we assume role_name from JWT is sufficient to find role_id
-    db.get("SELECT id FROM roles WHERE name = ?", [req.user.role], (err, roleRow) => {
-      if (err || !roleRow) {
-        console.error('Authorization error: Role not found in DB for role name:', req.user.role, err);
-        return res.status(500).json({ error: "Error validating user role."});
-      }
-      const roleId = roleRow.id;
-
-      // Check if the user has ALL required permissions
-      // For simplicity, this example checks for each permission individually.
-      // A more performant approach for many permissions might involve a single query.
-      let permissionsMet = 0;
-      const placeholders = requiredPermissions.map(() => '?').join(',');
-      const sql = `
-        SELECT p.name
-        FROM permissions p
-        JOIN role_permissions rp ON p.id = rp.permission_id
-        WHERE rp.role_id = ? AND p.name IN (${placeholders})
-      `;
-
-      db.all(sql, [roleId, ...requiredPermissions], (err, rows) => {
-        if (err) {
-          console.error('Error fetching user permissions:', err.message);
-          return res.status(500).json({ error: 'Error checking permissions.' });
-        }
-
-        const hasAllPermissions = requiredPermissions.every(rp => rows.some(row => row.name === rp));
-
-        if (hasAllPermissions) {
-          next(); // User has all required permissions
-        } else {
-          console.warn(`Authorization failed for user ${req.user.username} (role ${req.user.role}): Missing one or more of permissions: ${requiredPermissions.join(', ')}`);
-          res.status(403).json({ error: 'Forbidden: Insufficient permissions.' });
-        }
-      });
-    });
-  };
-};
-
 
 // Serve frontend static files
 app.use(express.static(path.join(__dirname, 'public')));

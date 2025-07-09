@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { db, authenticateToken, authorize } = require('../auth');
+const { authenticateToken, authorize } = require('../auth');
+const db = require('../database'); // Import shared db instance
 
 // POST /api/suppliers - Add a new supplier
 router.post('/', authenticateToken, authorize(['manage_inventory']), (req, res) => {
