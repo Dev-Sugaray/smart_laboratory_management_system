@@ -1,0 +1,38 @@
+<div class="container">
+  <h2>{{ isEditMode ? 'Edit Supplier' : 'Add Supplier' }}</h2>
+
+  <form [formGroup]="supplierForm" (ngSubmit)="onSubmit()">
+    <div class="form-group">
+      <label for="name">Name:</label>
+      <input type="text" id="name" formControlName="name" class="form-control"
+             [ngClass]="{ 'is-invalid': supplierForm.get('name')?.invalid && supplierForm.get('name')?.touched }">
+      <div *ngIf="supplierForm.get('name')?.invalid && supplierForm.get('name')?.touched" class="invalid-feedback">
+        Name is required.
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="contactPerson">Contact Person:</label>
+      <input type="text" id="contactPerson" formControlName="contactPerson" class="form-control"
+             [ngClass]="{ 'is-invalid': supplierForm.get('contactPerson')?.invalid && supplierForm.get('contactPerson')?.touched }">
+      <div *ngIf="supplierForm.get('contactPerson')?.invalid && supplierForm.get('contactPerson')?.touched" class="invalid-feedback">
+        Contact person is required.
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="email">Email:</label>
+      <input type="email" id="email" formControlName="email" class="form-control"
+             [ngClass]="{ 'is-invalid': supplierForm.get('email')?.invalid && supplierForm.get('email')?.touched }">
+      <div *ngIf="supplierForm.get('email')?.invalid && supplierForm.get('email')?.touched" class="invalid-feedback">
+        <span *ngIf="supplierForm.get('email')?.errors?.['required']">Email is required.</span>
+        <span *ngIf="supplierForm.get('email')?.errors?.['email']">Invalid email format.</span>
+      </div>
+    </div>
+
+    <button type="submit" class="btn btn-success" [disabled]="supplierForm.invalid">
+      {{ isEditMode ? 'Update' : 'Create' }}
+    </button>
+    <button type="button" (click)="cancel()" class="btn btn-secondary ml-2">Cancel</button>
+  </form>
+</div>
