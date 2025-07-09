@@ -1,8 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { db, authenticateToken, authorize } = require('../index'); // Assuming db, authenticateToken, authorize are exported from index.js
-
-// Placeholder for routes
+const { db, authenticateToken, authorize } = require('../auth');
 
 // POST /api/experiments - Create a new experiment
 router.post('/experiments', authenticateToken, authorize(['manage_experiments']), (req, res) => {

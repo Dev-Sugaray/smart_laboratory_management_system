@@ -213,12 +213,13 @@ const authorize = (requiredPermissions) => {
 };
 
 
-// Serve frontend static files in production
-if (process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'test_production_build') {
-  const frontendDistPath = path.resolve(__dirname, '..', 'frontend', 'dist');
-  console.log(`Serving static files from: ${frontendDistPath}`); // For debugging
-  app.use(express.static(frontendDistPath));
-}
+// Serve frontend static files
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Optionally, serve index.html for all non-API routes (for SPA-like routing)
+app.get(/^\/(?!api\/).*/, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 // API endpoint for user registration
 app.post('/api/register', async (req, res) => {
@@ -442,4 +443,4 @@ if (process.env.NODE_ENV !== 'test') { // Do not start server if in test environ
   });
 }
 
-module.exports = { app, db, authenticateToken, authorize }; // Export for testing and for use in other route files
+module.exports = { app, db }; // Export for testing and for use in other route files

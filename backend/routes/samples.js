@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { db, authenticateToken, authorize } = require('../index');
+const { db, authenticateToken, authorize } = require('../auth');
 
 // Placeholder success response for non-implemented routes
 const placeholderHandler = (req, res) => {

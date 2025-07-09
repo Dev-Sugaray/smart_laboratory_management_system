@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { db, authenticateToken, authorize } = require('../index'); // Assuming db, authenticateToken, authorize are exported from index.js
+const { db, authenticateToken, authorize } = require('../auth');
 
 // Placeholder for routes
 

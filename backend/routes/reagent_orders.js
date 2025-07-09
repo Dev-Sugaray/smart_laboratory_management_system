@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { db, authenticateToken, authorize } = require('../index');
+const { db, authenticateToken, authorize } = require('../auth');
 
 // Helper function for ISO8601 date validation (YYYY-MM-DD)
 const isValidDate = (dateString) => {

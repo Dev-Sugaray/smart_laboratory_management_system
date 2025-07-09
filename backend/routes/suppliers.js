@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { db, authenticateToken, authorize } = require('../index');
+const { db, authenticateToken, authorize } = require('../auth');
 
 // POST /api/suppliers - Add a new supplier
 router.post('/', authenticateToken, authorize(['manage_inventory']), (req, res) => {
