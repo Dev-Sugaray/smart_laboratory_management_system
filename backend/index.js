@@ -151,27 +151,27 @@ app.get(/^\/(?!api\/).*/, (req, res) => {
 
 // API endpoint for user registration
 app.post('/api/register', async (req, res) => {
-  const { username, password, email, full_name } = req.body;
+  const { username, password, email, full_name, role } = req.body;
 
-  if (!username || !password || !email || !full_name) {
-    return res.status(400).json({ error: 'All fields are required (username, password, email, full_name).' });
+  if (!username || !password || !email || !full_name || !role) {
+    return res.status(400).json({ error: 'All fields are required (username, password, email, full_name, role).' });
   }
 
   try {
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-      // Get default role 'researcher' ID
-      db.get("SELECT id FROM roles WHERE name = 'researcher'", [], (err, roleRow) => {
-        if (err || !roleRow) {
-          console.error('Error finding default role "researcher" for new user:', err ? err.message : 'Role not found');
-          return res.status(500).json({ error: 'Server error: Could not assign default role.' });
-        }
-        const defaultRoleId = roleRow.id;
+    // Get role ID for the provided role name
+    db.get("SELECT id FROM roles WHERE name = ?", [role], (err, roleRow) => {
+      if (err || !roleRow) {
+        console.error('Error finding role for new user:', err ? err.message : 'Role not found');
+        return res.status(500).json({ error: 'Server error: Could not assign role.' });
+      }
+      const roleId = roleRow.id;
 
-        const sql = `INSERT INTO users (username, password_hash, email, full_name, role_id) VALUES (?, ?, ?, ?, ?)`;
-        db.run(sql, [username, hashedPassword, email, full_name, defaultRoleId], function(err) {
-          if (err) {
-            if (err.message.includes('UNIQUE constraint failed: users.username')) {
+      const sql = `INSERT INTO users (username, password_hash, email, full_name, role_id) VALUES (?, ?, ?, ?, ?)`;
+      db.run(sql, [username, hashedPassword, email, full_name, roleId], function(err) {
+        if (err) {
+          if (err.message.includes('UNIQUE constraint failed: users.username')) {
             return res.status(409).json({ error: 'Username already exists.' });
           }
           if (err.message.includes('UNIQUE constraint failed: users.email')) {

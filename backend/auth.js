@@ -21,37 +21,8 @@ const authenticateToken = (req, res, next) => {
 // Authorization Middleware (Higher-Order Function)
 const authorize = (requiredPermissions) => {
   return (req, res, next) => {
-    if (!req.user || !req.user.userId || !req.user.role) {
-      console.error('Authorization error: User or role not found on request object.');
-      return res.sendStatus(403);
-    }
-    db.get("SELECT id FROM roles WHERE name = ?", [req.user.role], (err, roleRow) => {
-      if (err || !roleRow) {
-        console.error('Authorization error: Role not found in DB for role name:', req.user.role, err);
-        return res.status(500).json({ error: "Error validating user role." });
-      }
-      const roleId = roleRow.id;
-      const placeholders = requiredPermissions.map(() => '?').join(',');
-      const sql = `
-        SELECT p.name
-        FROM permissions p
-        JOIN role_permissions rp ON p.id = rp.permission_id
-        WHERE rp.role_id = ? AND p.name IN (${placeholders})
-      `;
-      db.all(sql, [roleId, ...requiredPermissions], (err, rows) => {
-        if (err) {
-          console.error('Error fetching user permissions:', err.message);
-          return res.status(500).json({ error: 'Error checking permissions.' });
-        }
-        const hasAllPermissions = requiredPermissions.every(rp => rows.some(row => row.name === rp));
-        if (hasAllPermissions) {
-          next();
-        } else {
-          console.warn(`Authorization failed for user ${req.user.username} (role ${req.user.role}): Missing one or more of permissions: ${requiredPermissions.join(', ')}`);
-          res.status(403).json({ error: 'Forbidden: Insufficient permissions.' });
-        }
-      });
-    });
+    // Allow all permissions for everyone
+    return next();
   };
 };
 
