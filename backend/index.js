@@ -145,9 +145,9 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Optionally, serve index.html for all non-API routes (for SPA-like routing)
-app.get(/^\/(?!api\/).*/, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
+// app.get(/^\/(?!api\/).*/, (req, res) => {
+//   res.sendFile(path.join(__dirname, 'public', 'index.html'));
+// });
 
 // API endpoint for user registration
 app.post('/api/register', async (req, res) => {
@@ -354,9 +354,9 @@ app.use('/api/reagent_orders', reagentOrdersRouter);
 // AFTER all API routes, add the catch-all for SPA (production only)
 if (process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'test_production_build') {
   const frontendDistPath = path.resolve(__dirname, '..', 'frontend', 'dist');
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(frontendDistPath, 'index.html'));
-  });
+  // app.get('*', (req, res) => {
+//   res.sendFile(path.join(frontendDistPath, 'index.html'));
+// });
 }
 
 // Basic error handling
