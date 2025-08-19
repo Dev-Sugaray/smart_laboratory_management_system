@@ -1,0 +1,24 @@
+<!-- This will be the main navigation, which I'll update in the next step -->
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
+  <a class="navbar-brand" href="#">My App</a>
+  <div class="collapse navbar-collapse">
+    <ul class="navbar-nav mr-auto">
+      <li class="nav-item">
+        <a class="nav-link" routerLink="/suppliers" routerLinkActive="active">Suppliers</a>
+      </li>
+      <!-- Add other navigation links here, e.g., for Experiments and Instruments -->
+      <!--
+      <li class="nav-item">
+        <a class="nav-link" routerLink="/experiments" routerLinkActive="active">Experiments</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" routerLink="/instruments" routerLinkActive="active">Instruments</a>
+      </li>
+      -->
+    </ul>
+  </div>
+</nav>
+
+<div class="container mt-4">
+  <router-outlet></router-outlet>
+</div>
