@@ -1,3 +1,5 @@
+import { addData, getAllData, updateData, deleteData } from './db.js';
+
 // experiments.js - Handles CRUD for experiments (dummy data for now)
 document.addEventListener('DOMContentLoaded', function () {
   let experiments = [];
@@ -6,8 +8,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const modal = new bootstrap.Modal(document.getElementById('experimentModal'));
   const form = document.getElementById('experiment-form');
   let editId = null;
-  const user = JSON.parse(localStorage.getItem('user'));
-  const token = user && user.token;
+  const user = JSON.parse(localStorage.getItem('user')); // Re-add user parsing
 
   function badge(status) {
     if (status === 'Completed') return '<span class="badge bg-success">Completed</span>';
@@ -36,10 +37,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   async function fetchExperiments() {
-    const res = await fetch('/api/experiments', {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    experiments = await res.json();
+    experiments = await getAllData('experiments');
     renderTable();
   }
 
@@ -54,10 +52,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   window.deleteExperiment = async function(id) {
     if (confirm('Are you sure you want to delete this experiment?')) {
-      await fetch(`/api/experiments/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await deleteData('experiments', id);
       fetchExperiments();
     }
   };
@@ -72,26 +67,18 @@ document.addEventListener('DOMContentLoaded', function () {
     e.preventDefault();
     const payload = {
       name: form['name'].value,
-      description: form['description'].value
+      description: form['description'].value,
+      status: form['status'].value, // Add status field
+      start_date: form['start_date'].value, // Add start_date field
+      end_date: form['end_date'].value // Add end_date field
     };
+
     if (editId) {
-      await fetch(`/api/experiments/${editId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      });
+      // For update, include the id in the payload
+      await updateData('experiments', { id: editId, ...payload });
     } else {
-      await fetch('/api/experiments', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      });
+      // For add, IndexedDB will auto-increment id
+      await addData('experiments', payload);
     }
     modal.hide();
     fetchExperiments();

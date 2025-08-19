@@ -1,3 +1,5 @@
+import { addData, getAllData, updateData, deleteData } from './db.js';
+
 // reagents.js - Handles CRUD for reagents
 document.addEventListener('DOMContentLoaded', function () {
   let reagents = [];
@@ -7,7 +9,6 @@ document.addEventListener('DOMContentLoaded', function () {
   const form = document.getElementById('reagent-form');
   let editId = null;
   const user = JSON.parse(localStorage.getItem('user'));
-  const token = user && user.token;
 
   function renderTable() {
     tableBody.innerHTML = '';
@@ -33,13 +34,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   async function fetchReagents() {
     try {
-      const res = await fetch('/api/reagents', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (!res.ok) {
-        throw new Error(`Error fetching reagents: ${res.statusText}`);
-      }
-      reagents = await res.json();
+      reagents = await getAllData('reagents');
       renderTable();
     } catch (error) {
       console.error(error);
@@ -64,13 +59,7 @@ document.addEventListener('DOMContentLoaded', function () {
   window.deleteReagent = async function(id) {
     if (confirm('Are you sure you want to delete this reagent?')) {
       try {
-        const res = await fetch(`/api/reagents/${id}`, {
-          method: 'DELETE',
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (!res.ok) {
-          throw new Error(`Error deleting reagent: ${res.statusText}`);
-        }
+        await deleteData('reagents', id);
         fetchReagents();
       } catch (error) {
         console.error(error);
@@ -111,22 +100,11 @@ document.addEventListener('DOMContentLoaded', function () {
         return;
     }
 
-
-    const url = editId ? `/api/reagents/${editId}` : '/api/reagents';
-    const method = editId ? 'PUT' : 'POST';
-
     try {
-      const res = await fetch(url, {
-        method: method,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      });
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || `Error saving reagent: ${res.statusText}`);
+      if (editId) {
+        await updateData('reagents', { id: editId, ...payload });
+      } else {
+        await addData('reagents', payload);
       }
       modal.hide();
       fetchReagents();
@@ -136,14 +114,4 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
 
-  if (token) {
-    fetchReagents();
-  } else {
-    // Handle case where user is not logged in or token is missing
-    // For example, redirect to login page or display a message
-    console.warn('User token not found. Reagents data will not be loaded.');
-    // You might want to redirect to login: window.location.href = '/index.html';
-    // Or display a message in the tableBody:
-    // tableBody.innerHTML = '<tr><td colspan="9">Please log in to view reagents.</td></tr>';
-  }
-});
+  

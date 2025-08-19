@@ -1,3 +1,5 @@
+import { addData, getAllData, updateData, deleteData } from './db.js';
+
 // suppliers.js - Handles CRUD for suppliers
 document.addEventListener('DOMContentLoaded', function () {
   let suppliers = [];
@@ -7,7 +9,6 @@ document.addEventListener('DOMContentLoaded', function () {
   const form = document.getElementById('supplier-form');
   let editId = null; // To store the ID of the supplier being edited
   const user = JSON.parse(localStorage.getItem('user'));
-  const token = user && user.token;
 
   function renderTable() {
     tableBody.innerHTML = ''; // Clear existing rows
@@ -30,19 +31,8 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   async function fetchSuppliers() {
-    if (!token) {
-      console.warn('User token not found. Suppliers data will not be loaded.');
-      tableBody.innerHTML = '<tr><td colspan="7">Please log in to view suppliers.</td></tr>';
-      return;
-    }
     try {
-      const res = await fetch('/api/suppliers', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (!res.ok) {
-        throw new Error(`Error fetching suppliers: ${res.statusText} (${res.status})`);
-      }
-      suppliers = await res.json();
+      suppliers = await getAllData('suppliers');
       renderTable();
     } catch (error) {
       console.error(error);
@@ -65,18 +55,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
   window.deleteSupplier = async function(id) {
     if (confirm('Are you sure you want to delete this supplier?')) {
-      if (!token) {
-        alert('Authentication token not found. Please log in again.');
-        return;
-      }
       try {
-        const res = await fetch(`/api/suppliers/${id}`, {
-          method: 'DELETE',
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (!res.ok) {
-          throw new Error(`Error deleting supplier: ${res.statusText}`);
-        }
+        await deleteData('suppliers', id);
         fetchSuppliers(); // Refresh table
       } catch (error) {
         console.error(error);
@@ -112,26 +92,11 @@ document.addEventListener('DOMContentLoaded', function () {
         return;
     }
 
-    const url = editId ? `/api/suppliers/${editId}` : '/api/suppliers';
-    const method = editId ? 'PUT' : 'POST';
-
-    if (!token) {
-      alert('Authentication token not found. Please log in again.');
-      return;
-    }
-
     try {
-      const res = await fetch(url, {
-        method: method,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      });
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({ error: `Error saving supplier: ${res.statusText}` }));
-        throw new Error(errorData.error || `Error saving supplier: ${res.statusText}`);
+      if (editId) {
+        await updateData('suppliers', { id: editId, ...payload });
+      } else {
+        await addData('suppliers', payload);
       }
       modal.hide();
       fetchSuppliers(); // Refresh table

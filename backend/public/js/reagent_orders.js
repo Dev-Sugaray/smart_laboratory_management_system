@@ -1,3 +1,5 @@
+import { addData, getAllData, updateData, deleteData } from './db.js';
+
 document.addEventListener('DOMContentLoaded', function () {
   let reagentOrders = [];
   let reagents = [];
@@ -10,12 +12,6 @@ document.addEventListener('DOMContentLoaded', function () {
   let editingOrderId = null;
 
   const user = JSON.parse(localStorage.getItem('user'));
-  const token = user && user.token;
-
-  if (!token) {
-    window.location.href = '/index.html'; // Redirect to login
-    return;
-  }
 
   function formatDate(dateString) {
     if (!dateString) return '-';
@@ -77,11 +73,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   async function fetchReagents() {
     try {
-      const response = await fetch('/api/reagents', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (!response.ok) throw new Error('Failed to fetch reagents');
-      reagents = await response.json();
+      reagents = await getAllData('reagents');
       populateReagentDropdown();
     } catch (error) {
       console.error('Error fetching reagents:', error);
@@ -90,11 +82,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   async function fetchSuppliers() {
     try {
-      const response = await fetch('/api/suppliers', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (!response.ok) throw new Error('Failed to fetch suppliers');
-      suppliers = await response.json();
+      suppliers = await getAllData('suppliers');
       populateSupplierDropdown();
     } catch (error) {
       console.error('Error fetching suppliers:', error);
@@ -119,17 +107,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   async function fetchReagentOrders() {
     try {
-      const response = await fetch('/api/reagent_orders', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (!response.ok) {
-        if (response.status === 401 || response.status === 403) {
-            alert('Authentication error. Please log in again.');
-            window.location.href = '/index.html';
-        }
-        throw new Error(`Failed to fetch reagent orders: ${response.status}`);
-      }
-      reagentOrders = await response.json();
+      reagentOrders = await getAllData('reagent_orders');
       renderTable();
     } catch (error) {
       console.error('Error fetching reagent orders:', error);
@@ -160,14 +138,7 @@ document.addEventListener('DOMContentLoaded', function () {
   window.deleteReagentOrder = async function(id) {
     if (confirm('Are you sure you want to delete this reagent order? This action cannot be undone.')) {
       try {
-        const response = await fetch(`/api/reagent_orders/${id}`, {
-          method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || `Failed to delete reagent order: ${response.status}`);
-        }
+        await deleteData('reagent_orders', id);
         fetchReagentOrders(); // Refresh the table
       } catch (error) {
         console.error('Error deleting reagent order:', error);
@@ -203,22 +174,11 @@ document.addEventListener('DOMContentLoaded', function () {
         return;
     }
 
-    const url = editingOrderId ? `/api/reagent_orders/${editingOrderId}` : '/api/reagent_orders';
-    const method = editingOrderId ? 'PUT' : 'POST';
-
     try {
-      const response = await fetch(url, {
-        method: method,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(orderData)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `Failed to save reagent order: ${response.status}`);
+      if (editingOrderId) {
+        await updateData('reagent_orders', { id: editingOrderId, ...orderData });
+      } else {
+        await addData('reagent_orders', orderData);
       }
       modal.hide();
       fetchReagentOrders(); // Refresh table

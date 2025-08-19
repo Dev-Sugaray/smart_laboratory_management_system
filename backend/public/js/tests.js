@@ -1,3 +1,5 @@
+import { addData, getAllData, updateData, deleteData } from './db.js';
+
 // tests.js - Handles CRUD for test definitions
 document.addEventListener('DOMContentLoaded', function () {
   let tests = [];
@@ -8,13 +10,6 @@ document.addEventListener('DOMContentLoaded', function () {
   let editingTestId = null; // To store the ID of the test being edited
 
   const user = JSON.parse(localStorage.getItem('user'));
-  const token = user && user.token;
-
-  if (!token) {
-    // Redirect to login if no token
-    window.location.href = '/index.html';
-    return;
-  }
 
   function formatDate(dateString) {
     if (!dateString) return '-';
@@ -52,17 +47,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   async function fetchTests() {
     try {
-      const response = await fetch('/api/tests', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (!response.ok) {
-        if (response.status === 401 || response.status === 403) {
-            alert('Authentication error. Please log in again.');
-            window.location.href = '/index.html';
-        }
-        throw new Error(`Failed to fetch tests: ${response.status}`);
-      }
-      tests = await response.json();
+      tests = await getAllData('tests');
       renderTable();
     } catch (error) {
       console.error('Error fetching tests:', error);
@@ -88,14 +73,7 @@ document.addEventListener('DOMContentLoaded', function () {
   window.deleteTest = async function(id) {
     if (confirm('Are you sure you want to delete this test? This action cannot be undone.')) {
       try {
-        const response = await fetch(`/api/tests/${id}`, {
-          method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || `Failed to delete test: ${response.status}`);
-        }
+        await deleteData('tests', id);
         fetchTests(); // Refresh the table
       } catch (error) {
         console.error('Error deleting test:', error);
@@ -124,22 +102,11 @@ document.addEventListener('DOMContentLoaded', function () {
         return;
     }
 
-    const url = editingTestId ? `/api/tests/${editingTestId}` : '/api/tests';
-    const method = editingTestId ? 'PUT' : 'POST';
-
     try {
-      const response = await fetch(url, {
-        method: method,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(testData)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `Failed to save test: ${response.status}`);
+      if (editingTestId) {
+        await updateData('tests', { id: editingTestId, ...testData });
+      } else {
+        await addData('tests', testData);
       }
       modal.hide();
       fetchTests(); // Refresh table

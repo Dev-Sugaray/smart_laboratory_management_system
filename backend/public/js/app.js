@@ -42,47 +42,29 @@ document.addEventListener('DOMContentLoaded', function () {
     errorDiv.style.display = 'none';
     errorDiv.textContent = '';
 
-    try {
-      const response = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
-      });
-      const data = await response.json();
-      if (response.ok) {
-        // Store user info in localStorage for dashboard use
-        if (data.token) {
-          const payload = parseJwt(data.token);
-          localStorage.setItem('user', JSON.stringify({
-            username: payload.username,
-            role: payload.role,
-            token: data.token
-          }));
-        } else {
-          localStorage.removeItem('user');
-        }
-        mainContent.innerHTML = `<div class='alert alert-success'>Login successful! Redirecting to dashboard...</div>`;
-        setTimeout(() => {
-          window.location.href = '/views/dashboard.html';
-        }, 1200);
-      } else {
-        errorDiv.textContent = data.message || 'Invalid credentials';
-        errorDiv.style.display = 'block';
-      }
-    } catch (err) {
-      errorDiv.textContent = 'Server error. Please try again later.';
+    // Hardcoded user for client-side authentication
+    const HARDCODED_USER = {
+      username: 'admin',
+      password: 'password', // In a real app, never hardcode passwords
+      role: 'administrator'
+    };
+
+    if (username === HARDCODED_USER.username && password === HARDCODED_USER.password) {
+      localStorage.setItem('user', JSON.stringify({
+        username: HARDCODED_USER.username,
+        role: HARDCODED_USER.role
+      }));
+      mainContent.innerHTML = `<div class='alert alert-success'>Login successful! Redirecting to dashboard...</div>`;
+      setTimeout(() => {
+        window.location.href = '/views/dashboard.html';
+      }, 1200);
+    } else {
+      errorDiv.textContent = 'Invalid username or password.';
       errorDiv.style.display = 'block';
     }
   }
 
-  // Helper to decode JWT
-  function parseJwt(token) {
-    try {
-      return JSON.parse(atob(token.split('.')[1]));
-    } catch (e) {
-      return {};
-    }
-  }
+  
 
   // Initial render
   renderLoginForm();

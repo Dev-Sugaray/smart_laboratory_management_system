@@ -1,3 +1,5 @@
+import { addData, getAllData, updateData, deleteData } from './db.js';
+
 document.addEventListener('DOMContentLoaded', function () {
   let instruments = [];
   const tableBody = document.querySelector('#instruments-table-body'); // Ensure this ID exists in your HTML table body
@@ -8,13 +10,6 @@ document.addEventListener('DOMContentLoaded', function () {
   let editingInstrumentId = null; // To store the ID of the instrument being edited
 
   const user = JSON.parse(localStorage.getItem('user'));
-  const token = user && user.token;
-
-  if (!token) {
-    // Redirect to login if no token (or handle as per app's auth flow)
-    window.location.href = '/index.html';
-    return;
-  }
 
   function formatDate(dateString) {
     if (!dateString) return '-';
@@ -57,17 +52,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   async function fetchInstruments() {
     try {
-      const response = await fetch('/api/instruments', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (!response.ok) {
-        if (response.status === 401 || response.status === 403) {
-            alert('Authentication error. Please log in again.');
-            window.location.href = '/index.html';
-        }
-        throw new Error(`Failed to fetch instruments: ${response.status}`);
-      }
-      instruments = await response.json();
+      instruments = await getAllData('instruments');
       renderTable();
     } catch (error) {
       console.error('Error fetching instruments:', error);
@@ -99,15 +84,7 @@ document.addEventListener('DOMContentLoaded', function () {
   window.deleteInstrument = async function(id) {
     if (confirm('Are you sure you want to delete this instrument? This action cannot be undone.')) {
       try {
-        const response = await fetch(`/api/instruments/${id}`, {
-          method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || `Failed to delete instrument: ${response.status}`);
-        }
-        // alert('Instrument deleted successfully!');
+        await deleteData('instruments', id);
         fetchInstruments(); // Refresh the table
       } catch (error) {
         console.error('Error deleting instrument:', error);
@@ -143,26 +120,15 @@ document.addEventListener('DOMContentLoaded', function () {
         return;
     }
 
-    const url = editingInstrumentId ? `/api/instruments/${editingInstrumentId}` : '/api/instruments';
-    const method = editingInstrumentId ? 'PUT' : 'POST';
-
     try {
-      const response = await fetch(url, {
-        method: method,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(instrumentData)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `Failed to save instrument: ${response.status}`);
+      if (editingInstrumentId) {
+        // For update, include the id in the payload
+        await updateData('instruments', { id: editingInstrumentId, ...instrumentData });
+      } else {
+        // For add, IndexedDB will auto-increment id
+        await addData('instruments', instrumentData);
       }
 
-      // const result = await response.json();
-      // alert(`Instrument ${editingInstrumentId ? 'updated' : 'added'} successfully!`);
       modal.hide();
       fetchInstruments(); // Refresh table
     } catch (error) {

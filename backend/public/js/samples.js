@@ -1,3 +1,5 @@
+import { addData, getAllData, updateData, deleteData } from './db.js';
+
 document.addEventListener('DOMContentLoaded', function () {
   let samples = [];
   const tableBody = document.querySelector('table tbody');
@@ -8,12 +10,6 @@ document.addEventListener('DOMContentLoaded', function () {
   let editingSampleId = null;
 
   const user = JSON.parse(localStorage.getItem('user'));
-  const token = user && user.token;
-
-  if (!token) {
-    window.location.href = '/index.html'; // Redirect to login
-    return;
-  }
 
   function formatDate(dateString) {
     if (!dateString) return '-';
@@ -53,17 +49,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   async function fetchSamples() {
     try {
-      const response = await fetch('/api/samples', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (!response.ok) {
-        if (response.status === 401 || response.status === 403) {
-            alert('Authentication error. Please log in again.');
-            window.location.href = '/index.html';
-        }
-        throw new Error(`Failed to fetch samples: ${response.status}`);
-      }
-      const result = await response.json();
+      const result = await getAllData('samples');
       samples = Array.isArray(result) ? result : result.data || [];
       renderTable();
     } catch (error) {
@@ -95,14 +81,7 @@ document.addEventListener('DOMContentLoaded', function () {
   window.deleteSample = async function(id) {
     if (confirm('Are you sure you want to delete this sample? This action cannot be undone.')) {
       try {
-        const response = await fetch(`/api/samples/${id}`, {
-          method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || `Failed to delete sample: ${response.status}`);
-        }
+        await deleteData('samples', id);
         fetchSamples(); // Refresh the table
       } catch (error) {
         console.error('Error deleting sample:', error);
@@ -137,25 +116,11 @@ document.addEventListener('DOMContentLoaded', function () {
         return;
     }
 
-    // Using POST /api/samples for registration as per typical REST pattern
-    // The spec mentioned /api/samples/register, if that's strict, this URL needs change.
-    // For now, assuming POST to /api/samples for creation.
-    const url = editingSampleId ? `/api/samples/${editingSampleId}` : '/api/samples';
-    const method = editingSampleId ? 'PUT' : 'POST';
-
     try {
-      const response = await fetch(url, {
-        method: method,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(sampleData)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `Failed to save sample: ${response.status}`);
+      if (editingSampleId) {
+        await updateData('samples', { id: editingSampleId, ...sampleData });
+      } else {
+        await addData('samples', sampleData);
       }
       modal.hide();
       fetchSamples(); // Refresh table

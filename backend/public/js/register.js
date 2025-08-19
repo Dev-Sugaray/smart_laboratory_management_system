@@ -15,41 +15,39 @@ document.addEventListener('DOMContentLoaded', function () {
     let feedback = document.getElementById('register-feedback');
     if (feedback) feedback.remove();
 
-    try {
-      const response = await fetch('/api/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password, email, full_name, role })
-      });
-      const data = await response.json();
-      const feedbackDiv = document.createElement('div');
-      feedbackDiv.id = 'register-feedback';
-      feedbackDiv.className = 'mt-3';
-      if (response.ok) {
-        // Store user info in localStorage for dashboard use
-        localStorage.setItem('user', JSON.stringify({
-          username: username,
-          email: email,
-          full_name: full_name,
-          role: role // Store the selected role
-        }));
-        feedbackDiv.classList.add('alert', 'alert-success');
-        feedbackDiv.textContent = 'Registration successful! Redirecting to dashboard...';
-        registerForm.reset();
-        setTimeout(() => {
-          window.location.href = '/views/dashboard.html';
-        }, 1200);
-      } else {
-        feedbackDiv.classList.add('alert', 'alert-danger');
-        feedbackDiv.textContent = data.error || 'Registration failed.';
-      }
-      registerForm.parentNode.appendChild(feedbackDiv);
-    } catch (err) {
-      const feedbackDiv = document.createElement('div');
-      feedbackDiv.id = 'register-feedback';
-      feedbackDiv.className = 'alert alert-danger mt-3';
-      feedbackDiv.textContent = 'Server error. Please try again later.';
-      registerForm.parentNode.appendChild(feedbackDiv);
+    const feedbackDiv = document.createElement('div');
+    feedbackDiv.id = 'register-feedback';
+    feedbackDiv.className = 'mt-3';
+
+    // Retrieve existing users from localStorage or initialize an empty array
+    let users = JSON.parse(localStorage.getItem('registeredUsers')) || [];
+
+    // Check if username or email already exists
+    const userExists = users.some(user => user.username === username || user.email === email);
+
+    if (userExists) {
+      feedbackDiv.classList.add('alert', 'alert-danger');
+      feedbackDiv.textContent = 'Username or email already exists.';
+    } else {
+      // Add new user to the array
+      users.push({ username, email, full_name, password, role });
+      localStorage.setItem('registeredUsers', JSON.stringify(users));
+
+      // Store current user info in localStorage for dashboard use (auto-login after registration)
+      localStorage.setItem('user', JSON.stringify({
+        username: username,
+        email: email,
+        full_name: full_name,
+        role: role
+      }));
+
+      feedbackDiv.classList.add('alert', 'alert-success');
+      feedbackDiv.textContent = 'Registration successful! Redirecting to dashboard...';
+      registerForm.reset();
+      setTimeout(() => {
+        window.location.href = '/views/dashboard.html';
+      }, 1200);
     }
+    registerForm.parentNode.appendChild(feedbackDiv);
   });
 });
