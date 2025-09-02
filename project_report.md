@@ -1,44 +1,60 @@
-# Project Report
+# Project Report: Computer Laboratory Management System
 
 ## 1. Introduction
 
-This report details the work undertaken for the project. The primary objective of this project was to develop a comprehensive Laboratory Information Management System (LIMS) designed to manage and track laboratory data and workflows efficiently. This involved the design and implementation of both backend and frontend components to support core laboratory operations, including sample management, experiment and test tracking, instrument logging, basic inventory control, and user management with role-based access control. The scope of this project encompasses user authentication and authorization, tracking the lifecycle of samples, defining and managing experiments and tests, logging instrument usage, and maintaining a basic inventory of reagents and supplies. Advanced features such as automated reporting, direct integration with laboratory instruments, complex statistical analysis modules, and billing functionalities were considered out of scope for this phase of development. This document will cover the methodology, design, implementation, results, and conclusions drawn from this work.
+This report details the refactoring of a web application from a chemical Laboratory Information Management System (LIMS) to a Computer Laboratory Management System. The primary objective was to pivot the application's purpose, logic, and user interface to manage the assets of a computer lab, such as workstations, software licenses, and suppliers.
+
+The original application was a full-stack system with a Node.js backend API and a database. The refactoring effort transformed it into a purely client-side application where all data is stored and managed locally in the user's browser via IndexedDB. The backend's role is now limited to serving the static HTML, CSS, and JavaScript files.
+
+This document covers the methodology of the refactoring, the final design and implementation, and the results of the project.
 
 ## 2. Methodology
 
-The methodology adopted for this project involved several key phases. Initially, the project focused on defining the core requirements, evidenced by the detailed API and Role-Based Access Control (RBAC) documentation. This was followed by the design of the database schema (utilizing SQLite) and the overall application architecture. This was followed by the parallel development of the backend API using Node.js with Express.js and the frontend user interface using Vue.js with Vite. The subsequent phase focused on the iterative implementation of distinct modules, including sample management, instrument tracking, experiment and test definition, and inventory control, building out both backend routes and frontend components for each. Finally, the project involved unit testing for both backend (Jest) and frontend (Vitest) components to ensure functionality and the preparation of key documentation (API_DOCUMENTATION.md, RBAC_DOCUMENTATION.md). Specific techniques utilized include a full-stack JavaScript development approach, RESTful API design principles for backend services, component-based architecture for the Vue.js frontend, and version control managed via Git. The backend employs JWT for stateless authentication and bcrypt for password hashing. This systematic approach ensured that all objectives were addressed in a structured manner.
+The refactoring methodology involved a complete overhaul of the existing codebase. The key phases were:
+
+1.  **Requirement Analysis:** The first step was to redefine the core requirements. This involved mapping the old concepts (e.g., "Instruments", "Reagents") to new ones ("Computers", "Software") and identifying which features to keep, rename, or remove entirely.
+2.  **Architecture Pivot:** The decision was made to move from a full-stack architecture to a client-side-only architecture. This dramatically simplified the system by removing the need for a backend database, API routes, and complex authentication logic.
+3.  **Frontend Refactoring:** This was the main part of the work. It involved:
+    *   **Updating the Data Layer:** Modifying the IndexedDB schema to support the new data models (`computers`, `software`, `suppliers`).
+    *   **Updating the UI:** Rewriting HTML views to reflect the new purpose, including changes to navigation, titles, forms, and tables.
+    *   **Updating the Logic:** Rewriting the client-side JavaScript to perform CRUD operations on the new IndexedDB object stores.
+4.  **Cleanup and Documentation:** The final phase involved deleting all obsolete backend files (routes, tests, database scripts) and updating the documentation to describe the new system.
 
 ## 3. Design and Implementation
 
 ### 3.1 Design
 
-The design phase focused on The system is designed with a monolithic backend service built with Node.js and Express, and a separate single-page application (SPA) frontend developed using Vue.js. Key design decisions included:
-- **Technology Stack**: Node.js with Express.js for the backend, chosen for its lightweight nature and suitability for I/O-bound operations, along with the JavaScript ecosystem alignment. SQLite was selected as the database for its simplicity and file-based storage, suitable for small to medium-scale applications. Vue.js (version 3) with Vite was chosen for the frontend due to its modern reactive capabilities, component-based architecture, and efficient development tooling.
-- **Database Schema**: A relational database schema was designed, as detailed in `backend/init-db.js`, featuring tables for users, roles, permissions, samples, sample types, sources, storage locations, chain of custody, instruments, instrument usage logs, experiments, tests (definitions), experiment-test associations, sample tests (runs), reagents, suppliers, and reagent orders. This structure aims to normalize data and support the required application functionalities.
-- **API Design**: A RESTful API was implemented to facilitate communication between the frontend and backend, with endpoints documented in `API_DOCUMENTATION.md`. Authentication is handled via JWTs, and authorization is managed through a role-based access control (RBAC) system.
-- **UI/UX Considerations**: The frontend is structured with reusable Vue components and uses Vue Router for navigation and Pinia for state management. Tailwind CSS is utilized for styling, suggesting an approach towards responsive and utility-first design. Detailed schema relationships can be inferred from `backend/init-db.js` and API interactions from `API_DOCUMENTATION.md`. The design aimed to achieve modularity, evident in the separation of backend routes and frontend components, maintainability through clear code structure and documentation, and user-friendliness for laboratory personnel by providing a clear interface for managing complex workflows.
+The final system is designed as a client-side, single-page application (SPA).
+
+-   **Technology Stack**: The application uses plain HTML, JavaScript (ES6 Modules), and the Bootstrap 5 CSS framework. There is no frontend framework like Vue or React. A simple Express.js server is used to serve the static files, as configured in `vercel.json` for deployment.
+-   **Data Storage**: All application data is stored in the browser's IndexedDB. A wrapper module in `/js/db.js` provides a simple promise-based API for database operations (`addData`, `getAllData`, etc.), abstracting away the complexities of IndexedDB.
+-   **Application Structure**: The code is organized by feature. Each primary feature (Computers, Software, Suppliers) has its own HTML view in `/views` and a corresponding JavaScript file in `/js` that contains the logic for that view.
 
 ### 3.2 Implementation
 
-The implementation was carried out using The backend was implemented using Node.js and Express.js, with SQLite for the database. Frontend development utilized JavaScript with Vue.js 3, Vite as the build tool, Pinia for state management, and Vue Router for navigation. Development tools included Nodemon for backend auto-reloading and concurrently for managing multiple development processes. Testing frameworks employed were Jest for the backend and Vitest for the frontend. The core components developed include:
-- **Backend**: A comprehensive set of RESTful API endpoints for managing users (registration, login, profile), samples (registration, status updates, lifecycle tracking), instruments (registration, usage logging), experiments (creation, test association), test definitions, sample test runs (requesting, result entry), and inventory (reagents, suppliers, orders). This also includes robust authentication (JWT, bcrypt) and authorization (RBAC) middleware.
-- **Frontend**: A user interface with views for login, registration, user profiles, sample management (dashboard, registration, detail view, type/source/storage management), instrument management (listing, detail view, usage logging), experiment management (listing, creation, detail view), test definition management (listing, creation, detail view), and a test queue for sample test runs. Reusable components were created for forms, lists, and navigation, and Pinia stores manage application state for various modules. Significant hurdles included designing a comprehensive and normalized database schema to capture all necessary lab data relationships, implementing a secure and flexible role-based access control system, and managing application state effectively across the various frontend components. These were addressed through careful planning of the database structure, detailed definition of roles and permissions, and leveraging Pinia for centralized state management in the Vue.js application.
+The implementation focused on creating a user-friendly interface for managing lab assets.
+
+-   **Core Features:**
+    *   **Computer Management:** Users can add, view, edit, and delete computer workstations. The data includes name, make, model, serial number, purchase date, and status.
+    *   **Software Management:** Users can track software licenses, including software name, version, license key, expiry date, and the number of available licenses.
+    *   **Supplier Management:** Users can maintain a list of suppliers for hardware and software, including contact information.
+-   **Authentication:** The application features a simulated, client-side-only login system for demonstration purposes. It does not provide real security as there is no backend to enforce it.
 
 ### 3.3 Results
 
-The project yielded the following key results:
-- Successful development of a functional Laboratory Information Management System (LIMS) providing core features for managing samples, experiments, instruments, and basic inventory.
-- Implementation of a robust role-based access control (RBAC) system, detailed in `RBAC_DOCUMENTATION.md`, ensuring data security and appropriate access levels for different user roles (administrator, lab_manager, researcher).
-- Creation of a modular, component-based frontend with dedicated views for various laboratory workflows, facilitating user interaction and data entry.
-The system supports a wide range of API endpoints (detailed in `API_DOCUMENTATION.md`) for comprehensive data manipulation and retrieval. The presence of unit tests for both backend and frontend components (though coverage metrics are not provided) indicates a commitment to code quality and reliability.
+The refactoring project successfully achieved its main goal: transforming the application into a functional Computer Laboratory Management System.
+
+-   All traces of the old chemical lab theme have been removed from the user interface and the client-side code.
+-   The application now correctly performs CRUD operations for computers, software, and suppliers using IndexedDB for persistence.
+-   The codebase has been significantly simplified by the removal of the entire backend API and database, leaving only a clean, static frontend application.
+-   All supporting documentation has been updated to reflect the new purpose and architecture of the system.
 
 ## 4. Conclusion
 
-This project successfully delivered a functional Laboratory Information Management System (LIMS) capable of handling key laboratory data management tasks, including sample tracking, experiment management, instrument logging, and basic inventory control, thereby meeting its primary objectives. The work demonstrated that the chosen technology stack (Node.js/Express for backend, Vue.js for frontend, SQLite for database) is effective for developing a comprehensive web-based LIMS. The modular design of both backend and frontend components allows for good separation of concerns and potential for future expansion. The chosen methodology, involving initial requirements definition and schema design followed by iterative development of backend and frontend modules, proved to be effective in creating a well-structured and functional application. The presence of API and RBAC documentation from an early stage facilitated a clear development path.
+This project demonstrates a successful pivot of a web application's core purpose. By moving to a client-side architecture, the system was simplified while still providing the necessary functionality for managing a small computer lab. The final application is easy to understand, deploy, and maintain.
 
-Based on the results, potential areas for future work include:
-- **Advanced Reporting and Analytics**: Implementing features for generating complex reports and performing data analytics on the accumulated laboratory data.
-- **Direct Instrument Integration**: Developing modules for direct data acquisition from laboratory instruments to reduce manual data entry and errors.
-- **Enhanced Inventory Management**: Expanding inventory features to include barcode scanning for reagent tracking, automated stock alerts, and more detailed order management.
-
-Overall, this project provides a solid foundation for a customizable LIMS. It offers a practical solution for laboratories seeking to improve data management, workflow efficiency, and organization, with the potential to be adapted and scaled for more specific or advanced needs.
+Potential areas for future work could include:
+-   **User and Role Management:** Implementing a proper backend service to handle secure user authentication and role-based access control.
+-   **Network Integration:** Adding features to ping computers to check their network status.
+-   **Data Import/Export:** Allowing users to import or export their inventory data as CSV files.
+-   **Scheduling:** Re-introducing a scheduling feature to allow users to book time on specific computers.

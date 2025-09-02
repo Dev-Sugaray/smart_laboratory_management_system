@@ -1,6 +1,6 @@
 const DB_NAME = 'lab_management_db';
-const DB_VERSION = 1; // Use a higher version number if you change the schema
-const OBJECT_STORE_NAMES = ['samples', 'experiments', 'instruments', 'reagents', 'suppliers', 'reagent_orders', 'tests', 'sample_tests', 'users', 'roles', 'permissions', 'role_permissions', 'sample_types', 'sources', 'storage_locations', 'chain_of_custody'];
+const DB_VERSION = 2; // Use a higher version number if you change the schema
+const OBJECT_STORE_NAMES = ['computers', 'software', 'suppliers', 'users', 'roles', 'permissions', 'role_permissions'];
 
 let db;
 
