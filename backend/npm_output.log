@@ -1,8 +1,26 @@
-npm error code ENOENT
-npm error syscall open
-npm error path /app/backend/backend/package.json
-npm error errno -2
-npm error enoent Could not read package.json: Error: ENOENT: no such file or directory, open '/app/backend/backend/package.json'
-npm error enoent This is related to npm not being able to find a file.
-npm error enoent
-npm error A complete log of this run can be found in: /home/jules/.npm/_logs/2025-09-02T15_45_35_593Z-debug-0.log
+
+> backend@1.0.0 start
+> node index.js
+
+C:\Users\Tegas\Desktop\Clean Desktop\Dev\smart_laboratory_management_system\backend\node_modules\path-to-regexp\dist\index.js:73
+            throw new TypeError(`Missing parameter name at ${i}: ${DEBUG_URL}`);
+            ^
+
+TypeError: Missing parameter name at 1: https://git.new/pathToRegexpError
+    at name (C:\Users\Tegas\Desktop\Clean Desktop\Dev\smart_laboratory_management_system\backend\node_modules\path-to-regexp\dist\index.js:73:19)
+    at lexer (C:\Users\Tegas\Desktop\Clean Desktop\Dev\smart_laboratory_management_system\backend\node_modules\path-to-regexp\dist\index.js:91:27)
+    at lexer.next (<anonymous>)
+    at Iter.peek (C:\Users\Tegas\Desktop\Clean Desktop\Dev\smart_laboratory_management_system\backend\node_modules\path-to-regexp\dist\index.js:106:38)
+    at Iter.tryConsume (C:\Users\Tegas\Desktop\Clean Desktop\Dev\smart_laboratory_management_system\backend\node_modules\path-to-regexp\dist\index.js:112:28)
+    at Iter.text (C:\Users\Tegas\Desktop\Clean Desktop\Dev\smart_laboratory_management_system\backend\node_modules\path-to-regexp\dist\index.js:128:30)
+    at consume (C:\Users\Tegas\Desktop\Clean Desktop\Dev\smart_laboratory_management_system\backend\node_modules\path-to-regexp\dist\index.js:152:29)
+    at parse (C:\Users\Tegas\Desktop\Clean Desktop\Dev\smart_laboratory_management_system\backend\node_modules\path-to-regexp\dist\index.js:183:20)
+    at C:\Users\Tegas\Desktop\Clean Desktop\Dev\smart_laboratory_management_system\backend\node_modules\path-to-regexp\dist\index.js:294:74
+    at Array.map (<anonymous>)
+
+Node.js v22.17.1
+> backend@1.0.0 start
+> node index.js
+
+Server listening on port 3001
+Terminate batch job (Y/N)? 
